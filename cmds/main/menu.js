@@ -31,10 +31,34 @@ import { pickBanner } from "#lib/theme";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// ── Identidad y crédito (NOTICE §1 y §2) ────────────────────────────
+// NOMBRE: lo que muestra el menú. La base se llama SHIN-MD; una obra
+// derivada pone el suyo en el .env (BOT_NAME) y, al no llamarse igual
+// que la base, aparece la línea de crédito obligatoria del NOTICE.
+const NOMBRE = String(process.env.BOT_NAME || "SHIN-MD").trim() || "SHIN-MD";
+const CREDITO_AGPL = "Basado en Shin-MD por riokuroxi-svg - github.com/riokuroxi-svg/Shin-MD";
+const esObraDerivada = NOMBRE.toLowerCase() !== "shin-md";
+
+// Pie de la tarjeta interactiva. En la base queda idéntico a siempre.
+const PIE_INTERACTIVO = esObraDerivada
+  ? `${NOMBRE} • Bot de WhatsApp\n⚖️ ${CREDITO_AGPL}`
+  : "Shin-MD • Bot de WhatsApp Profesional\ngithub.com/riokuroxi-svg/Shin-MD";
+
 /**
  * Obtiene un banner aleatorio de la colección shuffle o assets por defecto
  */
 function getRandomBanner() {
+  // Banner fijo del menú: si se define MENU_BANNER en el .env (por ejemplo
+  // la imagen que sube fotomenu), manda sobre todo lo demás. Es lo que usa
+  // la instancia migrada de Levi-Bot para conservar su propia portada.
+  const fijo = process.env.MENU_BANNER;
+  if (fijo) {
+    try {
+      const ruta = path.isAbsolute(fijo) ? fijo : path.resolve(__dirname, "../..", fijo);
+      if (fs.existsSync(ruta)) return fs.readFileSync(ruta);
+    } catch {}
+  }
+
   // Tanda 1 del sistema de diseño: banner según la hora (día/noche).
   // media/banners/ manda sobre todo lo demás; si está vacía, se conserva
   // exactamente el comportamiento anterior (shuffle → assets → MENU_IMAGE).
@@ -120,6 +144,7 @@ const CAT_LABELS = {
   socket: "SOCKETS & BOTS",
   nsfw: "NSFW +18",
   owner: "CREADOR / OWNER",
+  biblia: "BÍBLICO",
   otros: "OTROS",
 };
 
@@ -127,7 +152,7 @@ export default {
   name: "menu",
   aliases: ["help", "ayuda", "h", "menupanel"],
   category: "info",
-  description: "Muestra el menú interactivo principal y estético de Shin-MD",
+  description: `Muestra el menú interactivo principal y estético de ${NOMBRE}`,
   usage: ".menu [categoría]",
   cooldown: 2,
   priority: true,
@@ -155,7 +180,8 @@ export default {
 
     const catOrder = [
       "info", "main", "downloads", "stickers", "anime", "utils", "utility",
-      "economy", "gacha", "games", "fun", "group", "profile", "socket", "nsfw", "owner", "otros"
+      "economy", "gacha", "games", "fun", "biblia", "group", "profile", "socket",
+      "nsfw", "owner", "otros"
     ];
 
     const sub = (ctx.arg || "").toLowerCase().trim();
@@ -172,7 +198,10 @@ export default {
       const emoji = CATEGORY_EMOJIS[matchedCat] || "📁";
       const catTitle = CAT_LABELS[matchedCat] || matchedCat.toUpperCase();
       const lines = list.map(c => `\`${prefix}${c.name}\`${getCommandBadges(c)} — ${c.description || "Sin descripción"}`);
-      const text = `${greeting}\n\n` + createBracketBox(catTitle, lines, emoji) + `\n_Shin-MD v${version} · AGPL-3.0_`;
+      const text = `${greeting}\n\n` + createBracketBox(catTitle, lines, emoji) +
+        (esObraDerivada
+          ? `\n_${NOMBRE} v${version} · AGPL-3.0_\n⚖️ _${CREDITO_AGPL}_`
+          : `\n_${NOMBRE} v${version} · AGPL-3.0_`);
 
       const banner = getRandomBanner();
       if (banner) {
@@ -199,14 +228,17 @@ export default {
 
     let headerText = `${greeting}\n\n`;
     headerText += `      *${pushName}*\n\n`;
-    headerText += `╭┈┈⫹⫺ *INFORMACIÓN SHIN-MD* ⫹⫺┈┈╮\n`;
-    headerText += `│ ◈ *Nombre* : *SHIN-MD*\n`;
+    headerText += `╭┈┈⫹⫺ *INFORMACIÓN ${NOMBRE}* ⫹⫺┈┈╮\n`;
+    headerText += `│ ◈ *Nombre* : *${NOMBRE}*\n`;
     headerText += `│ ◈ *Versión* : *${version}*\n`;
     headerText += `│ ◈ *Motor* : \`Baileys Multi-Device\`\n`;
     headerText += `│ ◈ *Uptime* : *${uptimeFormatted}*\n`;
     headerText += `│ ◈ *Clima* : ${weather}\n`;
     headerText += `│ ◈ *Comandos* : *${seenNames.size} únicos*\n`;
     headerText += `╰┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈╯\n\n`;
+
+    // Crédito obligatorio del NOTICE: visible y permanente en #menu.
+    if (esObraDerivada) headerText += `⚖️ _${CREDITO_AGPL}_\n\n`;
 
     headerText += `╭┈┈⫹⫺ *INFORMACIÓN USUARIO* ⫹⫺┈┈╮\n`;
     headerText += `│ ◈ *Nombre* : *${pushName}*\n`;
@@ -259,7 +291,7 @@ export default {
     if (popularRows.length) {
       menuSections.push({ title: "Lo más usado", highlight_label: "TOP", rows: popularRows });
     }
-    menuSections.push({ title: "反魂 · Categorías", rows: categoryRows });
+    menuSections.push({ title: esObraDerivada ? "📂 Categorías" : "反魂 · Categorías", rows: categoryRows });
 
     const menuButtons = [
       singleSelect("📂 Explorar Categorías", menuSections),
@@ -292,9 +324,9 @@ export default {
         `📢 *Canal:* ${channelUrl}`;
 
       await sendInteractive(sock, ctx.chatId, {
-        title: "✨ SHIN-MD " + version,
+        title: "✨ " + NOMBRE + " " + version,
         body: interactiveBody,
-        footer: "Shin-MD • Bot de WhatsApp Profesional\ngithub.com/riokuroxi-svg/Shin-MD",
+        footer: PIE_INTERACTIVO,
         video: videoAsset,
         gifPlayback: true,
         buttons: menuButtons,
@@ -318,7 +350,10 @@ export default {
         `_Toca "Leer más" para desplegar todas las categorías_ ⬇️\n` +
         readMore +
         fullCategoriesList +
-        `\n📢 *Canal Oficial:* ${channelUrl}\n_Shin-MD v${version} · Desarrollado por riokuroxi-svg_`;
+        `\n📢 *Canal Oficial:* ${channelUrl}\n` +
+        (esObraDerivada
+          ? `⚖️ _${CREDITO_AGPL}_`
+          : `_${NOMBRE} v${version} · Desarrollado por riokuroxi-svg_`);
 
       if (banner) {
         await sock.sendMessage(
@@ -347,9 +382,9 @@ export default {
       `📢 *Canal:* ${channelUrl}`;
 
     await sendInteractive(sock, ctx.chatId, {
-      title: "✨ SHIN-MD " + version,
+      title: "✨ " + NOMBRE + " " + version,
       body: interactiveBody,
-      footer: "Shin-MD • Bot de WhatsApp Profesional\ngithub.com/riokuroxi-svg/Shin-MD",
+      footer: PIE_INTERACTIVO,
       image: banner,
       buttons: menuButtons,
       hoja: menuHoja,

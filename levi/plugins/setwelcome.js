@@ -1,0 +1,66 @@
+/**
+ * Levi-Bot → Shin-MD · Migrado desde el bot de Brayan Flores
+ * Adaptado a Shin-MD por riokuroxi-svg — github.com/riokuroxi-svg
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+import fs from 'fs'
+import path from 'path'
+
+const DB_FILE = path.join(process.cwd(), 'database.json')
+
+function cargarDB() {
+  try {
+    return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'))
+  } catch {
+    return {}
+  }
+}
+
+function guardarDB(db) {
+  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2))
+}
+
+export default {
+  name: 'setwelcome',
+  aliases: ['textowelcome'],
+
+  async execute(sock, m, args, enviar) {
+    const chatId = m.chat || m.key?.remoteJid
+    const sender = m.sender || m.key?.participant || chatId
+
+    if (!chatId?.endsWith('@g.us')) {
+      return enviar('❌ Este comando solo funciona en grupos.')
+    }
+
+    const metadata = await sock.groupMetadata(chatId)
+    const admin = metadata.participants.find(p => p.id === sender)?.admin
+
+    if (!admin) {
+      return enviar('❌ Solo un administrador puede configurar la bienvenida.')
+    }
+
+    if (!args?.length) {
+      return enviar(
+        '👋 *SETWELCOME*\n\n' +
+        'Escribe el nuevo mensaje después del comando.\n\n' +
+        'Ejemplo:\n' +
+        '/Setwelcome 👋 Bienvenido @usuario al grupo.'
+      )
+    }
+
+    const db = cargarDB()
+
+    if (!db.grupos) db.grupos = {}
+    if (!db.grupos[chatId]) db.grupos[chatId] = {}
+
+    const mensaje = args.join(' ').trim()
+
+    db.grupos[chatId].welcomeText = mensaje
+    guardarDB(db)
+
+    return enviar(
+      `✅ *Mensaje de bienvenida guardado.*\n\n` +
+      `📝 ${mensaje}`
+    )
+  }
+}

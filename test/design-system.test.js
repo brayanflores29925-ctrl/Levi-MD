@@ -219,3 +219,39 @@ test(".owner: el crédito AGPL sobrevive también en la tarjeta con botones", as
   assert.ok(enviado?.contacts?.contacts?.[0]?.vcard, "debe acompañarse del vCard");
   assert.match(enviado.contacts.contacts[0].vcard, /BEGIN:VCARD/);
 });
+
+test(".menu: nombre configurable y crédito del NOTICE siempre visible", async () => {
+  // Una obra derivada (BOT_NAME distinto de la base) debe mostrar el crédito
+  // obligatorio en #menu. Aquí se importa el módulo con ese nombre puesto,
+  // con caché aparte para no tocar el resto de las pruebas.
+  process.env.BOT_NAME = "Levi-MD";
+  try {
+    const { default: menu } = await import("../cmds/main/menu.js?credito=" + Date.now());
+    const enviados = [];
+    const sock = {
+      user: { id: "1@s.whatsapp.net" },
+      sendMessage: async (jid, contenido) => { enviados.push(contenido); return {}; },
+      sendPresenceUpdate: async () => {},
+    };
+    const ctx = {
+      chatId: "1@s.whatsapp.net",
+      senderId: "2@s.whatsapp.net",
+      usedPrefix: ".",
+      arg: "", args: [],
+      isGroup: false,
+      key: { remoteJid: "1@s.whatsapp.net", fromMe: false, id: "AAA" },
+      full: {},
+      mentions: [],
+    };
+    const commands = new Map([["ping", { name: "ping", category: "info", description: "x" }]]);
+    await menu.handler(sock, ctx, null, commands);
+
+    const texto = enviados.map((c) => c.caption || c.text || "").join("\n");
+    assert.ok(texto.length > 0, "el menú no envió nada");
+    assert.match(texto, /Basado en Shin-MD por riokuroxi-svg - github\.com\/riokuroxi-svg\/Shin-MD/,
+      "el crédito del NOTICE §1 no puede faltar en #menu");
+    assert.match(texto, /Levi-MD/, "el menú debe mostrar el nombre configurado");
+  } finally {
+    delete process.env.BOT_NAME;
+  }
+});

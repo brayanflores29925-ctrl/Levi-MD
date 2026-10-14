@@ -60,6 +60,7 @@ export const CATEGORY_ICONS = Object.freeze({
   utils: "🛠️",
   owner: "👑",
   info: "💡",
+  biblia: "✝️",
 });
 
 export function categoryIcon(key) {

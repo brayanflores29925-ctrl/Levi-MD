@@ -1,0 +1,11 @@
+Esta carpeta es la migración del bot de Brayan (Levi-Bot) a Shin-MD.
+
+- plugins/  → sus 382 archivos de comandos, intactos.
+- config.js, database.js, authdb.js, authcodes.js, deps.js,
+  fuente-externa.js → los apoyos que sus comandos importan.
+- categorias.json → en qué sección del menú va cada comando.
+- inventario-original.txt → todos sus nombres y alias de origen.
+- media/levibot-menu.jpg → su imagen de menú (la cambia con fotomenu).
+
+No se edita a mano: se regenera con
+  node scripts/migrar-levi.mjs /ruta/a/Levi-bot2

@@ -52,7 +52,9 @@
     "npm": ">=10.0.0"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@distube/ytdl-core": "^4.16.12",
+    "@imeshsan2008/mfdl": "^1.1.0",
     "@img/sharp-wasm32": "^0.35.4",
     "aptoide-scraper": "^1.0.1",
     "awesome-phonenumber": "^7.8.0",
@@ -80,7 +82,8 @@
     "readline-sync": "^1.4.10",
     "sharp": "^0.35.4",
     "syntax-error": "^1.4.0",
-    "ws": "^8.21.3"
+    "ws": "^8.21.3",
+    "yt-search": "^2.13.1"
   },
   "overrides": {
     "libsignal": "npm:libsignal@6.0.0",

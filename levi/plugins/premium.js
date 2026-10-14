@@ -1,0 +1,46 @@
+/**
+ * Levi-Bot → Shin-MD · Migrado desde el bot de Brayan Flores
+ * Adaptado a Shin-MD por riokuroxi-svg — github.com/riokuroxi-svg
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+export default {
+  name: 'premium',
+  command: ['premium'],
+  category: 'Soporte',
+  description: 'Información sobre Levi Bots Premium',
+
+  // El loader llama execute(sock, m, parts, enviar) de forma posicional;
+  // una firma destructurada dejaba m en undefined y el comando reventaba.
+  async execute(sock, m) {
+    const texto = `💎 *LEVI BOTS PREMIUM* 💎
+
+🤖 *¡ALQUILA TU PROPIO LEVI-BOT!*
+
+💰 *Precio:* $10 USD
+📅 *Duración:* 1 mes
+
+✨ *¿QUÉ INCLUYE?*
+
+❑ 🤖 Levi-Bot completo
+❑ ⚙️ Todos los sistemas y funciones disponibles
+❑ 📱 Número integrado para el bot
+❑ 🛠️ Configuración inicial
+❑ 🔄 Actualizaciones del bot
+❑ 🆘 Soporte durante el período contratado
+
+💎 *TODO INCLUIDO POR SOLO $10 USD AL MES.*
+
+📲 *¿QUIERES CONTRATARLO?*
+
+Contacta al administrador para realizar el pago y activar tu Levi-Bot Premium.
+
+⚠️ *El servicio tiene una duración de 30 días desde su activación.*
+⚠️ *La activación se realiza después de confirmar el pago.*`;
+
+    await sock.sendMessage(
+      m.key.remoteJid,
+      { text: texto },
+      { quoted: m }
+    );
+  }
+};

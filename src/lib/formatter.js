@@ -52,6 +52,7 @@ export const CATEGORY_EMOJIS = {
   audio: "🎵",
   economy: "💰",
   rpg: "🗡️",
+  biblia: "✝️",
 };
 
 /**

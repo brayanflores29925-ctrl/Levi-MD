@@ -498,7 +498,7 @@ def main():
 SECCIONES = [
     (1, "Lo que lo hace distinto", "seis razones medibles", "rayo", P["rosa"], "lo-que-lo-hace-distinto"),
     (2, "El anti-ban por dentro", "jitter, calentamiento y monitor", "escudo", P["menta"], "el-anti-ban-por-dentro"),
-    (3, "Los 210 comandos", "15 categorías, carga dinámica", "rayo", P["ambar"], "los-210-comandos"),
+    (3, "Los 456 comandos", "16 categorías, carga dinámica", "rayo", P["ambar"], "los-456-comandos"),
     (4, "Panel local", "127.0.0.1:3000 · /health y /metrics", "engrane", P["menta"], "panel-local"),
     (5, "Instalación en 5 minutos", "Termux o VPS, sin misterios", "casa", P["rosa"], "instalación-en-5-minutos"),
     (6, "Cómo está hecho", "capas separadas y comprobables", "casa", P["ambar"], "cómo-está-hecho"),

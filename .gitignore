@@ -38,8 +38,20 @@ logs/
 # Private config
 config.private.js
 
+# Datos y accesos de los comandos migrados de Levi-Bot (nunca subir)
+/database.json
+/levi/database.json
+/authdb.json
+/levi/authdb.json
+/authcodes.json
+/levi/authcodes.json
+
 # Credenciales / cookies de sesión (NUNCA subir)
 cookies.txt
 *.cookies.txt
 audit/
 .vista-readme-*.html   # copia temporal para revisar el README
+
+# Caché de Python (herramientas de diseño)
+__pycache__/
+*.pyc

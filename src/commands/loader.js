@@ -9,6 +9,7 @@ import path from "path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import log from "#logger";
 import { buildCommandContext, downloadMediaFromObject } from "./context.js";
+import { loadLeviCommands, recargarLevi } from "./levi-compat.js";
 
 // Re-export: el resto del bot (router, tests) lo importa desde "#commands".
 // El original sigue viviendo en context.js, donde no crea ciclos.
@@ -123,12 +124,32 @@ export async function loadCommands() {
     }
   }
 
+  // Comandos migrados de Levi-Bot: viven fuera de cmds/ (en levi/) porque
+  // sus imports son relativos a esa carpeta. Un nombre que ya exista en
+  // Shin-MD NO se reemplaza, salvo LEVI_PRIORIDAD=levi en el .env.
+  let leviCount = 0;
+  let pisados = [];
+  try {
+    const res = await loadLeviCommands(commands, {
+      prioridad: process.env.LEVI_PRIORIDAD || "shin",
+      ganan: process.env.LEVI_GANAN || "",
+    });
+    leviCount = res.cargados;
+    pisados = res.pisados;
+  } catch (err) {
+    log.error("Carga Levi: " + (err.message || err));
+  }
+
   // El Map lleva los hooks pegados como propiedad. Se tipa explícito
   // porque "un Map con una propiedad extra" no existe en el sistema de
   // tipos; lo limpio sería devolver { commands, befores }.
   /** @type {any} */ (commands).befores = befores;
-  const unique = shinCount + ginkoCount - dupeCount;
-  log.success(unique + " comandos únicos (" + shinCount + " Shin, " + ginkoCount + " Ginko) · " + commands.size + " entradas con aliases" + (dupeCount ? " · " + dupeCount + " duplicados" : "") + (befores.length ? " · " + befores.length + " hooks before" : ""));
+  const unique = shinCount + ginkoCount - dupeCount + leviCount;
+  log.success(unique + " comandos únicos (" + shinCount + " Shin, " + ginkoCount + " Ginko, " + leviCount + " Levi) · " + commands.size + " entradas con aliases" + (dupeCount ? " · " + dupeCount + " duplicados" : "") + (befores.length ? " · " + befores.length + " hooks before" : ""));
+  if (pisados.length) {
+    log.warn(pisados.length + " comandos de Levi ceden ante uno de Shin-MD del mismo nombre: " + pisados.slice(0, 12).join(", ") + (pisados.length > 12 ? " ..." : ""));
+    log.warn("Si quieres que gane el de Levi, pon LEVI_PRIORIDAD=levi en el .env");
+  }
   return commands;
 }
 
@@ -136,6 +157,13 @@ export async function reloadCommand(name, commands) {
   const current = commands.get(name);
   if (!current) return false;
   try {
+    // Los comandos migrados de Levi viven en levi/plugins/ y llevan el
+    // prefijo "levi:" en su ruta.
+    if (String(current.file).startsWith("levi:")) {
+      const ok = await recargarLevi(String(current.file).slice(5), commands, name);
+      if (ok) log.success("Recargado: " + name);
+      return ok;
+    }
     const mod = await import(pathToFileURL(path.join(CMDS_DIR, current.file)).href + "?t=" + Date.now());
     const cmd = mod.default || mod;
     let shinCmd;
