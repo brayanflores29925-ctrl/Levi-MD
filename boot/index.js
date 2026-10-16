@@ -321,7 +321,7 @@ async function main() {
     support: process.env.SUPPORT_LINK || "",
   };
   globalThis.multiplier = 2;
-  globalThis.botname = "Shin-MD";
+  globalThis.botname = process.env.BOT_NAME || "LeviBot";
   globalThis.conns = new Map();
   globalThis.mess = {
     default: "⚠️ Comando no disponible.",
