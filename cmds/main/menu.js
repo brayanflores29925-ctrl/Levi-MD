@@ -27,7 +27,7 @@ import {
 import { resolveChannel } from "../../src/lib/channel.js";
 import { sendInteractive, singleSelect, quickReply, ctaUrl, ctaCopy } from "#interactive";
 import db from "../../src/services/ginko-db.js";
-import { pickBanner } from "#lib/theme";
+import { pickBanner, BRAND } from "#lib/theme";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -201,8 +201,8 @@ export default {
 
     let headerText = `${greeting}\n\n`;
     headerText += `      *${pushName}*\n\n`;
-    headerText += `╭┈┈⫹⫺ *INFORMACIÓN SHIN-MD* ⫹⫺┈┈╮\n`;
-    headerText += `│ ◈ *Nombre* : *SHIN-MD*\n`;
+    headerText += `╭┈┈⫹⫺ *INFORMACIÓN ${BRAND.name.toUpperCase()}* ⫹⫺┈┈╮\n`;
+    headerText += `│ ◈ *Nombre* : *${BRAND.name}*\n`;
     headerText += `│ ◈ *Versión* : *${version}*\n`;
     headerText += `│ ◈ *Motor* : \`Baileys Multi-Device\`\n`;
     headerText += `│ ◈ *Uptime* : *${uptimeFormatted}*\n`;

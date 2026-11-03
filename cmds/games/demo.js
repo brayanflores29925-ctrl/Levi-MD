@@ -83,7 +83,7 @@ export default {
     ];
 
     if (ctx.isGroup) {
-      let showcaseText = `╭┈┈⫹⫺ *SHOWCASE · SHIN-MD v3.0* ⫹⫺┈┈╮\n`;
+      let showcaseText = `╭┈┈⫹⫺ *SHOWCASE · LEVI-BOT v3.0* ⫹⫺┈┈╮\n`;
       showcaseText += `│ ◈ *Motor* : Baileys Multi-Device NATIVO\n`;
       showcaseText += `│ ◈ *Almacenamiento* : SQLite WAL + Checkpoint\n`;
       showcaseText += `│ ◈ *Anti-Ban* : Jitter Gaussiano 1200ms\n`;

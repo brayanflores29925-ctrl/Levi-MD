@@ -97,7 +97,7 @@ test("router carga .menu con formato", async () => {
   await router.handle(sock, makeMessage(".menu"));
   assert.equal(sock.sent.length, 1, "menu debe enviar");
   const text = sock.sent[0].content.caption || sock.sent[0].content.text || "";
-  assert.ok(text.includes("SHIN-MD"), "menu contiene nombre");
+  assert.ok(text.includes("Levi-Bot"), "menu contiene el nombre del bot");
   assert.ok(text.includes("ping"), "menu lista comandos");
 });
 

@@ -38,7 +38,7 @@ export default {
       (q.isPaused() ? " ⏸️ pausada" : "");
 
     const text =
-      "╭───「 ✨ *SHIN-MD* 」───\n" +
+      "╭───「 ✨ *Levi-Bot* 」───\n" +
       "│  ❏ *¡Pong!*\n" +
       "│  ⚡ Latencia › " + ms + "ms\n" +
       "│  " + colaTxt + "\n" +
