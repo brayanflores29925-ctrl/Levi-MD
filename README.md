@@ -2,7 +2,9 @@
 
 <img src="docs/assets/levi-anim.svg" alt="Levi-MD — bot de WhatsApp multi-device" width="100%">
 
-<img src="assets/levi-mascota.png" alt="Levi, la mascota del bot" width="170" align="center">
+<br>
+
+<img src="assets/levi-card.jpg" alt="Levi, la mascota del bot" width="340">
 
 <br>
 
@@ -391,7 +393,7 @@ descripción reales de cada comando):
 </details>
 
 <details>
-<summary><b>🖼️ Media</b> · 1 comandos</summary>
+<summary><b>🖼️ Media</b> · 1 comando</summary>
 
 | Comando | Alias | Qué hace |
 |---|---|---|
@@ -431,7 +433,7 @@ descripción reales de cada comando):
 </details>
 
 <details>
-<summary><b>🛠️ Utilidades (extra)</b> · 1 comandos</summary>
+<summary><b>🛠️ Utilidades (extra)</b> · 1 comando</summary>
 
 | Comando | Alias | Qué hace |
 |---|---|---|
@@ -549,7 +551,8 @@ rompan):
 
 | Archivo | Dónde se ve |
 |---|---|
-| `assets/levi-mascota.png` | mascota del bot y README |
+| `assets/levi-mascota.png` | mascota del bot (avatar, menús) |
+| `assets/levi-card.jpg` | tarjeta de presentación del README |
 | `assets/imagenes/levi-banner.png` | banner del menú (día y noche) |
 | `assets/imagenes/levi-menu-1..3.jpg` | rotación de imágenes de `.menu` / `.menucat` |
 | `media/covers/levi-cover-1..3.jpg` | **portadas del `.play`** y del audio |
@@ -557,9 +560,11 @@ rompan):
 
 <div align="center">
 
-<img src="assets/imagenes/levi-banner.png" alt="Banner del menú" width="46%">
-<img src="media/covers/levi-cover-1.jpg" alt="Portada del play" width="22%">
-<img src="media/covers/levi-cover-2.jpg" alt="Portada del play" width="22%">
+<img src="assets/imagenes/levi-banner.png" alt="Banner del menú" height="200">
+&nbsp;&nbsp;&nbsp;
+<img src="media/covers/levi-cover-1.jpg" alt="Portada del play" height="200">
+&nbsp;&nbsp;&nbsp;
+<img src="media/covers/levi-cover-2.jpg" alt="Portada del play" height="200">
 
 </div>
 
@@ -683,15 +688,17 @@ npm run lint
 **AGPL-3.0-only** · ver [LICENSE](LICENSE) y [NOTICE](NOTICE).
 
 Este proyecto es una **obra derivada** de **Shin-MD** por **riokuroxi-svg**
-(<https://github.com/riokuroxi-svg/Shin-MD>). El `NOTICE` se conserva sin
+([github.com/riokuroxi-svg/Shin-MD](https://github.com/riokuroxi-svg/Shin-MD)). El `NOTICE` se conserva sin
 modificar y sus términos de la Sección 7 aplican: el crédito
 «Basado en Shin-MD por riokuroxi-svg» aparece de forma permanente en `.menu` y
 `.owner`, y las marcas `Shin-MD` y `反魂` quedan reservadas a su autor — este bot
 no las usa como marca propia.
 
 <div align="center">
-<br>
-<img src="docs/assets/levi-anim.svg" alt="Levi-MD" width="70%">
-<br><br>
-<sub>Hecho para funcionar sin caerse · <b>Levi-MD</b> · base Shin-MD de riokuroxi-svg</sub>
+
+---
+
+<sub>Hecho para funcionar sin caerse · <b>Levi-MD</b><br>
+base <a href="https://github.com/riokuroxi-svg/Shin-MD">Shin-MD</a> de riokuroxi-svg</sub>
+
 </div>
