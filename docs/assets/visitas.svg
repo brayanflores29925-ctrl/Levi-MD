@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 230" width="660" height="230" role="img" aria-label="Levi-MD — 7 commits, 1 días en línea">
+  <title>Levi-MD · 7 commits · día 1</title>
+  <defs>
+    <linearGradient id="brillo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#25D366" stop-opacity=".16"/>
+      <stop offset="100%" stop-color="#EE3D86" stop-opacity=".14"/>
+    </linearGradient>
+    <pattern id="rejilla" width="22" height="22" patternUnits="userSpaceOnUse">
+      <path d="M22 0H0V22" fill="none" stroke="#25D366" stroke-opacity=".07" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect x="1.5" y="1.5" width="657" height="227" rx="26" fill="#0d1117" stroke="#25D366" stroke-opacity=".45" stroke-width="3"/>
+  <rect x="1.5" y="1.5" width="657" height="227" rx="26" fill="url(#rejilla)"/>
+  <rect x="1.5" y="1.5" width="657" height="227" rx="26" fill="url(#brillo)"/>
+
+  <text x="36" y="98" font-family="'DejaVu Sans',Helvetica,Arial,sans-serif" font-size="27"
+    font-weight="700" letter-spacing="1.5" fill="#7CFFB2">LEVI-MD</text>
+  <text x="36" y="122" font-family="'DejaVu Sans Mono',ui-monospace,monospace" font-size="12.5"
+    letter-spacing="1.4" fill="#8b98a8">en linea sin caerse</text>
+  <circle cx="40" cy="146" r="4" fill="#25D366"/>
+  <text x="54" y="150" font-family="'DejaVu Sans Mono',ui-monospace,monospace" font-size="11.5"
+    letter-spacing="1.2" fill="#6f7c8c">anti-ban activo</text>
+
+  
+  <g transform="rotate(-4 357 97)">
+    
+    <path d="M313 44 l16 -16 l16 16 z" fill="#25D366" opacity=".9"/>
+    <path d="M369 44 l16 -16 l16 16 z" fill="#25D366" opacity=".9"/>
+    <rect x="291" y="38" width="132" height="118" rx="14" fill="#0d1117" opacity=".55" transform="translate(4 6)"/>
+    <rect x="291" y="38" width="132" height="118" rx="14" fill="#fdfdff" stroke="#25D366" stroke-width="3"/>
+    <g fill="#12141a"><rect x="337.0" y="68.0" width="8" height="8"/><rect x="345.0" y="68.0" width="8" height="8"/><rect x="353.0" y="68.0" width="8" height="8"/><rect x="361.0" y="68.0" width="8" height="8"/><rect x="369.0" y="68.0" width="8" height="8"/><rect x="369.0" y="76.0" width="8" height="8"/><rect x="361.0" y="84.0" width="8" height="8"/><rect x="353.0" y="92.0" width="8" height="8"/><rect x="345.0" y="100.0" width="8" height="8"/><rect x="345.0" y="108.0" width="8" height="8"/><rect x="345.0" y="116.0" width="8" height="8"/></g>
+    <g fill="#25D366">
+      <rect x="309" y="134" width="96" height="3" rx="1.5" opacity=".55"/>
+    </g>
+    <text x="357" y="179" text-anchor="middle"
+      font-family="'DejaVu Sans Mono',ui-monospace,monospace" font-size="14"
+      letter-spacing="2.6" fill="#25D366">COMMITS</text>
+  </g>
+  
+  <g transform="rotate(4 523 97)">
+    
+    <path d="M479 44 l16 -16 l16 16 z" fill="#EE3D86" opacity=".9"/>
+    <path d="M535 44 l16 -16 l16 16 z" fill="#EE3D86" opacity=".9"/>
+    <rect x="457" y="38" width="132" height="118" rx="14" fill="#0d1117" opacity=".55" transform="translate(4 6)"/>
+    <rect x="457" y="38" width="132" height="118" rx="14" fill="#fdfdff" stroke="#EE3D86" stroke-width="3"/>
+    <g fill="#12141a"><rect x="519.0" y="68.0" width="8" height="8"/><rect x="511.0" y="76.0" width="8" height="8"/><rect x="519.0" y="76.0" width="8" height="8"/><rect x="519.0" y="84.0" width="8" height="8"/><rect x="519.0" y="92.0" width="8" height="8"/><rect x="519.0" y="100.0" width="8" height="8"/><rect x="519.0" y="108.0" width="8" height="8"/><rect x="511.0" y="116.0" width="8" height="8"/><rect x="519.0" y="116.0" width="8" height="8"/><rect x="527.0" y="116.0" width="8" height="8"/></g>
+    <g fill="#EE3D86">
+      <rect x="475" y="134" width="96" height="3" rx="1.5" opacity=".55"/>
+    </g>
+    <text x="523" y="179" text-anchor="middle"
+      font-family="'DejaVu Sans Mono',ui-monospace,monospace" font-size="14"
+      letter-spacing="2.6" fill="#EE3D86">DIAS</text>
+  </g>
+
+  <text x="36" y="216" font-family="'DejaVu Sans Mono',ui-monospace,monospace" font-size="11.5"
+    letter-spacing=".9" fill="#5d6875">contados por git · se actualiza solo</text>
+</svg>

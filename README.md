@@ -555,6 +555,7 @@ rompan):
 | `assets/levi-card.jpg` | tarjeta de presentación del README |
 | `assets/rioku-chibi.png` | avatar de riokuroxi-svg (viene de Shin-MD) |
 | `assets/rioku-chibi-card.jpg` | tarjeta de créditos del README |
+| `docs/assets/visitas.svg` | contador del README (se redibuja solo) |
 | `assets/imagenes/levi-banner.png` | banner del menú (día y noche) |
 | `assets/imagenes/levi-menu-1..3.jpg` | rotación de imágenes de `.menu` / `.menucat` |
 | `media/covers/levi-cover-1..3.jpg` | **portadas del `.play`** y del audio |
@@ -571,23 +572,24 @@ rompan):
 </div>
 
 <details>
-<summary><b>Contador de visitas animado (estilo Moe Counter)</b></summary>
+<summary><b>El contador (estilo Moe Counter)</b></summary>
 
-El contador con dibujos pixel-art que se ve en otros README **no se puede dejar
-puesto aquí**: `count.getloli.com` está detrás de Cloudflare y GitHub lo sirve
-como imagen rota. Si quieres tenerlo, pega esta línea al principio del README
-(abajo del todo funciona igual) **y comprueba en GitHub que carga**:
+Los contadores pixel-art de otros README se piden a `count.getloli.com`, que hoy
+está detrás de Cloudflare: GitHub pide la imagen, recibe un **403** y la deja
+rota. Sus espejos (`moe-counter.glitch.me`) redirigen al mismo sitio, así que
+tampoco sirven.
 
-```html
-<img src="https://count.getloli.com/get/@levi-md?theme=green" alt="visitas">
-```
+Por eso este repositorio trae **su propio contador**, sin depender de nadie:
 
-Temas disponibles: `green`, `moebooru`, `rule34`, `gelbooru`, `miku`, `asoul`,
-`minecraft`… Cambia `green` por el que te guste y `@levi-md` por el nombre que
-quieras (el contador es por nombre: si lo cambias, empieza de cero).
+- `tools/contador.js` mide dos cosas reales con git —**commits** y **días en
+  línea**— y dibuja el SVG con una tipografía de píxeles (números de 5×7 en
+  tarjetas blancas inclinadas, con orejitas).
+- `.github/workflows/contador.yml` lo ejecuta en cada push y una vez al día, y
+  guarda el SVG si cambió.
 
-Alternativa que **sí** funciona siempre (sin dibujos, pero sin romperse):
-`https://komarev.com/ghpvc/?username=brayanflores29925-ctrl&color=25D366`.
+Se puede tocar sin miedo: si el número se ve raro, `npm run contador` lo
+redibuja en un segundo. Y si algún día quieres el contador de visitas de verdad,
+este es el enlace, por si vuelve a estar arriba: `count.getloli.com/get/@levi-md`.
 
 </details>
 
@@ -710,6 +712,12 @@ modificar y sus términos de la Sección 7 aplican: el crédito
 no las usa como marca propia.
 
 <div align="center">
+
+<br>
+
+<img src="docs/assets/visitas.svg" alt="Contador de Levi-MD: commits y días en línea" width="520">
+
+<br><br>
 
 ---
 

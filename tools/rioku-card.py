@@ -30,13 +30,22 @@ linea = np.zeros((H, W, 1), dtype=np.float32)
 linea[(yy.astype(int) % paso) == 0] = 8
 linea[..., 0][(xx.astype(int) % paso) == 0] = 8
 img = screen(img, np.repeat(linea, 3, axis=2) * np.array([2.4, 1, 1.6], dtype=np.float32))
-img = screen(img, luz(W * .50, H * .44, W * .50, H * .34, (122, 28, 70), .27))
+# rosa en las esquinas (no detras de la figura, que es clara y se lavaba)
+img = screen(img, luz(W * .04, H * .06, W * .42, H * .30, (128, 26, 74), .40))
+img = screen(img, luz(W * .96, H * .96, W * .42, H * .30, (128, 26, 74), .40))
+# foco oscuro central: separa el chibi del fondo
+foco = ((xx - W * .5) / (W * .42)) ** 2 + ((yy - H * .45) / (H * .40)) ** 2
+img = img * (1.0 - 0.42 * np.exp(-foco * 1.6))[..., None]
 img = screen(img, luz(W * .06, H * .98, W * .42, H * .26, (22, 110, 58), .22))
 
 lienzo = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).convert("RGBA")
 
 # ── el chibi, con su transparencia ─────────────────────────────────────────
+from PIL import ImageEnhance
 chibi = Image.open("assets/rioku-chibi.png").convert("RGBA")
+rgb = ImageEnhance.Color(chibi.convert("RGB")).enhance(1.45)
+rgb = ImageEnhance.Contrast(rgb).enhance(1.12)
+chibi = Image.merge("RGBA", (*rgb.split(), chibi.getchannel("A")))
 alto = int(H * 0.80)
 ancho = int(chibi.width * alto / chibi.height)
 chibi = chibi.resize((ancho, alto), Image.LANCZOS)
@@ -44,7 +53,7 @@ chibi = chibi.resize((ancho, alto), Image.LANCZOS)
 # halo suave detras para despegarlo del fondo
 halo = Image.new("RGBA", (W, H), (0, 0, 0, 0))
 ImageDraw.Draw(halo).ellipse(
-    [W // 2 - ancho, H - alto - 10, W // 2 + ancho, H + 40], fill=ROSA + (46,))
+    [W // 2 - ancho, H - alto - 10, W // 2 + ancho, H + 40], fill=ROSA + (60,))
 halo = halo.filter(ImageFilter.GaussianBlur(34))
 lienzo = Image.alpha_composite(lienzo, halo)
 

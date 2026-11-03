@@ -19,7 +19,8 @@
     "typecheck": "tsc",
     "test:pairing": "node scripts/verificar-pairing.js",
     "docs:web": "node scripts/actualizar-web.mjs",
-    "docs:pastel": "python3 tools/build_pastel.py"
+    "docs:pastel": "python3 tools/build_pastel.py",
+    "contador": "node tools/contador.js"
   },
   "imports": {
     "#engine": "./src/core/engine.js",
