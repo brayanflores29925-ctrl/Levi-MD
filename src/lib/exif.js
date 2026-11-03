@@ -34,7 +34,7 @@ export async function videoToWebp(media) {
 export async function writeExifImg(media, metadata = {}) {
   const wMedia = await imageToWebp(media);
   const packname = metadata.packname || global.botname || 'Shin-MD';
-  const author = metadata.author || global.ownerName || 'riokuroxi-svg';
+  const author = metadata.author || global.ownerName || 'Levi-MD';
   const categories = metadata.categories || ['✨'];
 
   const img = new webp.Image();
@@ -63,7 +63,7 @@ export async function writeExifImg(media, metadata = {}) {
 export async function writeExifVid(media, metadata = {}) {
   const wMedia = await videoToWebp(media);
   const packname = metadata.packname || global.botname || 'Shin-MD';
-  const author = metadata.author || global.ownerName || 'riokuroxi-svg';
+  const author = metadata.author || global.ownerName || 'Levi-MD';
   const categories = metadata.categories || ['✨'];
 
   try {

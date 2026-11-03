@@ -68,10 +68,10 @@ export function categoryIcon(key) {
 
 // ── Marca ───────────────────────────────────────────────────────────
 export const BRAND = Object.freeze({
-  name: "Shin-MD",
-  kanji: "反魂",
+  name: "Levi-Bot",
+  kanji: "",
   mark: "❦",
-  footer: "❦ Shin-MD · 反魂",
+  footer: "❦ Levi-Bot · Levi-MD",
 });
 
 // ── Tipografía ──────────────────────────────────────────────────────

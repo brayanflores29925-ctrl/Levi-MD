@@ -29,7 +29,9 @@ test("theme: paleta y marca congeladas (nadie las pisa en caliente)", () => {
   assert.equal(COLORS.pink, "#FF4FA3");
   assert.equal(Object.isFrozen(COLORS), true);
   assert.equal(Object.isFrozen(BRAND), true);
-  assert.equal(BRAND.kanji, "反魂");
+  // Levi-MD no usa la marca 反魂 (reservada a Shin-MD por el NOTICE).
+  assert.equal(BRAND.kanji, "");
+  assert.equal(BRAND.name, "Levi-Bot");
   for (const c of [COLORS.pink, COLORS.cyan, COLORS.danger]) {
     assert.match(c, /^#[0-9A-F]{6}$/, `${c} debe ser hex de 6 dígitos`);
   }

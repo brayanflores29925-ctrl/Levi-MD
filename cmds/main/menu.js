@@ -56,10 +56,11 @@ function getRandomBanner() {
 
   const fallbackPaths = [
     process.env.MENU_IMAGE,
-    path.resolve(__dirname, "../../assets/image/shin-landscape.jpg"),
-    path.resolve(__dirname, "../../assets/image/shin.png"),
+    path.resolve(__dirname, "../../assets/imagenes/levi-menu-1.jpg"),
+    path.resolve(__dirname, "../../assets/imagenes/levi-menu-2.jpg"),
+    path.resolve(__dirname, "../../assets/imagenes/levi-banner.png"),
+    path.resolve(__dirname, "../../assets/levi-mascota.png"),
     path.resolve(__dirname, "../../assets/banner-default.png"),
-    path.resolve(__dirname, "../../assets/shin-banner.png"),
   ].filter(Boolean);
 
   for (const p of fallbackPaths) {
@@ -78,6 +79,7 @@ function getRandomBanner() {
 function getVideoAsset() {
   const videoPaths = [
     process.env.MENU_VIDEO_PATH,
+    path.resolve(__dirname, "../../assets/video/levi-mp4.mp4"),
     path.resolve(__dirname, "../../assets/video/shin-mp4.mp4"),
   ].filter(Boolean);
 
@@ -127,7 +129,7 @@ export default {
   name: "menu",
   aliases: ["help", "ayuda", "h", "menupanel"],
   category: "info",
-  description: "Muestra el menú interactivo principal y estético de Shin-MD",
+  description: "Muestra el menú interactivo principal de Levi-MD",
   usage: ".menu [categoría]",
   cooldown: 2,
   priority: true,
@@ -172,7 +174,7 @@ export default {
       const emoji = CATEGORY_EMOJIS[matchedCat] || "📁";
       const catTitle = CAT_LABELS[matchedCat] || matchedCat.toUpperCase();
       const lines = list.map(c => `\`${prefix}${c.name}\`${getCommandBadges(c)} — ${c.description || "Sin descripción"}`);
-      const text = `${greeting}\n\n` + createBracketBox(catTitle, lines, emoji) + `\n_Shin-MD v${version} · AGPL-3.0_`;
+      const text = `${greeting}\n\n` + createBracketBox(catTitle, lines, emoji) + `\n_Levi-MD v${version} · AGPL-3.0 · Basado en Shin-MD por riokuroxi-svg_`;
 
       const banner = getRandomBanner();
       if (banner) {
@@ -259,7 +261,7 @@ export default {
     if (popularRows.length) {
       menuSections.push({ title: "Lo más usado", highlight_label: "TOP", rows: popularRows });
     }
-    menuSections.push({ title: "反魂 · Categorías", rows: categoryRows });
+    menuSections.push({ title: "Levi-MD · Categorías", rows: categoryRows });
 
     const menuButtons = [
       singleSelect("📂 Explorar Categorías", menuSections),
@@ -268,10 +270,10 @@ export default {
       quickReply("🏓 Ping", "ping"),
       ctaUrl("📢 Canal Oficial", channelUrl),
       ctaCopy("📋 Copiar prefijo", prefix),
-      ctaUrl("⭐ Código fuente", "https://github.com/riokuroxi-svg/Shin-MD"),
+      ctaUrl("⭐ Repositorio", "https://github.com/brayanflores29925-ctrl/Levi-MD"),
     ];
     const menuHoja = {
-      titulo: "Shin-MD · más opciones",
+      titulo: "Levi-MD · más opciones",
       boton: "Ver todo",
       divisiones: [2],
     };
@@ -293,9 +295,9 @@ export default {
         `📢 *Canal:* ${channelUrl}`;
 
       await sendInteractive(sock, ctx.chatId, {
-        title: "✨ SHIN-MD " + version,
+        title: "✨ LEVI-BOT " + version,
         body: interactiveBody,
-        footer: "Shin-MD • Bot de WhatsApp Profesional\ngithub.com/riokuroxi-svg/Shin-MD",
+        footer: "Levi-Bot • Bot de WhatsApp\nBasado en Shin-MD por riokuroxi-svg",
         video: videoAsset,
         gifPlayback: true,
         buttons: menuButtons,
@@ -319,7 +321,7 @@ export default {
         `_Toca "Leer más" para desplegar todas las categorías_ ⬇️\n` +
         readMore +
         fullCategoriesList +
-        `\n📢 *Canal Oficial:* ${channelUrl}\n_Shin-MD v${version} · Desarrollado por riokuroxi-svg_`;
+        `\n📢 *Canal Oficial:* ${channelUrl}\n_Levi-MD v${version} · Base: Shin-MD por riokuroxi-svg_`;
 
       if (banner) {
         await sock.sendMessage(
@@ -348,9 +350,9 @@ export default {
       `📢 *Canal:* ${channelUrl}`;
 
     await sendInteractive(sock, ctx.chatId, {
-      title: "✨ SHIN-MD " + version,
+      title: "✨ LEVI-BOT " + version,
       body: interactiveBody,
-      footer: "Shin-MD • Bot de WhatsApp Profesional\ngithub.com/riokuroxi-svg/Shin-MD",
+      footer: "Levi-Bot • Bot de WhatsApp\nBasado en Shin-MD por riokuroxi-svg",
       image: banner,
       buttons: menuButtons,
       hoja: menuHoja,

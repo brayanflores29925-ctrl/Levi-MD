@@ -76,8 +76,8 @@ function backoffDelay(attempt, baseMs = 4000, maxMs = 45000, jitterMs = 2000) {
 
 function getBannerBuffer() {
   const possiblePaths = [
+    path.resolve(process.cwd(), 'assets', 'imagenes', 'levi-banner.png'),
     path.resolve(process.cwd(), 'assets', 'banner-default.png'),
-    path.resolve(process.cwd(), 'assets', 'shin-banner.png'),
     path.resolve(process.cwd(), 'assets', 'avatar-default.png'),
   ];
   for (const p of possiblePaths) {

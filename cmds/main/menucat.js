@@ -82,6 +82,7 @@ const CAT_ICONS = {
  */
 function getRandomMenuImage() {
   const pools = [
+    path.resolve(__dirname, "../../assets/imagenes"),
     path.resolve(__dirname, "../../assets/menus"),
     path.resolve(__dirname, "../../assets/image/shuffle"),
     path.resolve(__dirname, "../../assets"),

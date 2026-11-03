@@ -35,8 +35,8 @@ function getRandomBanner() {
 
   const fallbackPaths = [
     process.env.MENU_IMAGE,
-    path.resolve(__dirname, "../../assets/image/shin-landscape.jpg"),
-    path.resolve(__dirname, "../../assets/image/shin.png"),
+    path.resolve(__dirname, "../../assets/imagenes/levi-menu-1.jpg"),
+    path.resolve(__dirname, "../../assets/imagenes/levi-menu-2.jpg"),
     path.resolve(__dirname, "../../assets/banner-default.png"),
   ].filter(Boolean);
 
@@ -116,7 +116,7 @@ export default {
       body += createBracketBox(label, cmdLines, emoji);
     }
 
-    const fullText = header + readMore + body + `\n_Shin-MD • Desarrollado por riokuroxi-svg_`;
+    const fullText = header + readMore + body + `\n_Levi-MD • Basado en Shin-MD por riokuroxi-svg_`;
     const banner = getRandomBanner();
 
     if (banner) {

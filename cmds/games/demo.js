@@ -16,9 +16,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const BANNER_PATHS = [
   process.env.MENU_IMAGE,
+  path.resolve(__dirname, "../../assets/imagenes/levi-banner.png"),
+  path.resolve(__dirname, "../../assets/imagenes/levi-menu-1.jpg"),
   path.resolve(__dirname, "../../assets/banner-default.png"),
-  path.resolve(__dirname, "../../assets/shin-banner.png"),
-  path.resolve(__dirname, "../../media/menu.jpg"),
 ].filter(Boolean);
 
 let _bannerCache = null;

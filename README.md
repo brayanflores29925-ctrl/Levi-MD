@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/pastel/mascota.png" alt="Levi-MD" width="150">
+<img src="assets/levi-mascota.png" alt="Levi — mascota del bot" width="190">
 
 # Levi-MD
 
