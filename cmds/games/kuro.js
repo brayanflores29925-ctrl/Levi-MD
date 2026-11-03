@@ -8,7 +8,8 @@
 // El usuario debe presionar el botón correcto lo más rápido posible
 
 import sharp from 'sharp';
-import { quickReply, sendInteractive } from '#interactive';
+import { quickReply } from '#interactive';
+import { enviar } from "#motor/enviar";
 
 const COLORS = ['🔴', '🔵', '🟢', '🟡', '🟣', '🟠'];
 const COLOR_NAMES = ['Rojo', 'Azul', 'Verde', 'Amarillo', 'Morado', 'Naranja'];
@@ -135,7 +136,7 @@ async function doRound(sock, ctx, state) {
   );
   buttons.push(quickReply('❌', 'kuro:stop'));
 
-  await sendInteractive(sock, ctx.chatId, {
+  await enviar(sock, ctx.chatId, {
     image: img,
     body: `⚔️ Ronda ${state.round}/${state.total}\n❤️ ${state.lives} | 🏆 ${state.score}`,
     footer: '🎮 Kuro Slash · Shin-MD',

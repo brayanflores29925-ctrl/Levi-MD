@@ -8,10 +8,10 @@
 
 <br>
 
-[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&pause=1200&color=25D366&center=true&vCenter=true&width=620&lines=El+bot+que+no+se+cae+y+no+borra+tu+sesi%C3%B3n;212+comandos+%C2%B7+190%2F191+pruebas+%C2%B7+anti-ban;Sobre+el+n%C3%BAcleo+de+Shin-MD+(AGPL-3.0))](https://github.com/brayanflores29925-ctrl/Levi-MD)
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&pause=1200&color=25D366&center=true&vCenter=true&width=620&lines=El+bot+que+no+se+cae+y+no+borra+tu+sesi%C3%B3n;213+comandos+%C2%B7+203%2F204+pruebas+%C2%B7+anti-ban;Sobre+el+n%C3%BAcleo+de+Shin-MD+(AGPL-3.0))](https://github.com/brayanflores29925-ctrl/Levi-MD)
 
-![Comandos](https://img.shields.io/badge/comandos-212-25D366?style=for-the-badge&labelColor=0B1512)
-![Pruebas](https://img.shields.io/badge/pruebas-190%2F191-EE3D86?style=for-the-badge&labelColor=0B1512)
+![Comandos](https://img.shields.io/badge/comandos-213-25D366?style=for-the-badge&labelColor=0B1512)
+![Pruebas](https://img.shields.io/badge/pruebas-203%2F204-EE3D86?style=for-the-badge&labelColor=0B1512)
 ![Node](https://img.shields.io/badge/node-%E2%89%A5%2022.5-339933?style=for-the-badge&labelColor=0B1512)
 ![Baileys](https://img.shields.io/badge/baileys-6.7.24-2F1A24?style=for-the-badge&labelColor=0B1512)
 ![Licencia](https://img.shields.io/badge/licencia-AGPL--3.0--only-EE3D86?style=for-the-badge&labelColor=0B1512)
@@ -19,7 +19,7 @@
 <sub>
 
 **[Instalar](#-instalación-en-5-minutos)** ·
-**[Comandos](#-los-212-comandos)** ·
+**[Comandos](#-los-213-comandos)** ·
 **[Botones](#-botones-y-el-aviso-actualizar-whatsapp)** ·
 **[Arte](#-arte-del-bot)** ·
 **[Problemas](#-si-algo-no-funciona)** ·
@@ -34,7 +34,7 @@
 ## 🧩 Qué es esto
 
 Un bot de WhatsApp que se vincula como **dispositivo secundario** —sin API
-oficial, sin cuenta de empresa, sin tarjeta— con **212 comandos**: menús con
+oficial, sin cuenta de empresa, sin tarjeta— con **213 comandos**: menús con
 botones nativos, economía con base de datos, gacha, stickers, descargas
 (YouTube, TikTok, Instagram, Spotify…) y moderación de grupos.
 
@@ -45,8 +45,8 @@ abajo.
 
 | | |
 |---|---|
-| **Comandos** | 212 únicos · 751 nombres con alias · 18 categorías |
-| **Pruebas** | 190/191 pruebas (191 con `better-sqlite3`) |
+| **Comandos** | 213 únicos · 754 nombres con alias · 18 categorías |
+| **Pruebas** | 203/204 pruebas (204 con `better-sqlite3`) |
 | **Node** | ≥ 22.5 |
 | **Datos** | SQLite con respaldo JSON automático |
 | **Licencia** | AGPL-3.0-only |
@@ -107,7 +107,7 @@ Todo vive en `.env`. Estas son las claves que de verdad cambian el comportamient
 | `LOG_LEVEL` | `info` | `debug` muestra todo |
 | `PORT` / `PANEL_PASSWORD` | `3000` / — | Panel web. Si lo expones fuera de `127.0.0.1`, la contraseña es obligatoria |
 
-## 📚 Los 212 comandos
+## 📚 Los 213 comandos
 
 Escribe `.menu` dentro de WhatsApp. Los imprescindibles:
 
@@ -149,10 +149,11 @@ descripción reales de cada comando):
 </details>
 
 <details>
-<summary><b>👑 Dueño</b> · 8 comandos</summary>
+<summary><b>👑 Dueño</b> · 9 comandos</summary>
 
 | Comando | Alias | Qué hace |
 |---|---|---|
+| `.botones` | `boton`, `capacidades` | Decide qué aguanta **este chat**: `texto`, `tarjeta`, `completo` o `auto`. |
 | `.diag` | `quien`, `quiensoy`, `diagnostico` | Explica cómo ve WhatsApp al remitente y si el bot lo reconoce como dueño. |
 | `.ex` | `e` | Ejecutar código JavaScript en el bot. |
 | `.fix` | `update` | Actualizar y recargar los comandos del bot. |
@@ -623,7 +624,7 @@ el `NOTICE`.
 
 ```
 index.js · boot/          arranque, sesión, anti-crash
-cmds/                     1 archivo = 1 comando (212)
+cmds/                     1 archivo = 1 comando (213)
 src/core/                 motor anti-ban, auth, watchdog, socket
 src/commands/             router, contexto, loader
 src/lib/                  wa-guard, owner-check, wa-nodes, native-reply, tema…
@@ -631,7 +632,7 @@ src/storage/              SQLite + respaldo JSON
 src/network/              cola de envío, health
 assets/ imagenes/ media/  arte del bot
 docs/                     BOTONES.md, PROCEDENCIA.md, web/
-test/                     31 archivos, 191 pruebas
+test/                     33 archivos, 204 pruebas
 ```
 
 ## 🔧 Si algo no funciona
@@ -680,7 +681,7 @@ bot anterior que no se migraron a `main`.
 ## 🧪 Pruebas
 
 ```bash
-npm test        # 190/191 pruebas (182 con better-sqlite3 instalado)
+npm test        # 203/204 pruebas (182 con better-sqlite3 instalado)
 npm run lint
 ```
 

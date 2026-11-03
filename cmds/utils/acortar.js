@@ -10,7 +10,8 @@
 import { runGuarded } from '#lib/apiBreaker';
 // Un enlace que hay que seleccionar a mano no sirve de nada en el
 // móvil: cta_copy lo copia de un toque y cta_url lo abre.
-import { sendInteractive, ctaCopy, ctaUrl } from "#interactive";
+import { ctaCopy, ctaUrl } from "#interactive";
+import { enviar } from "#motor/enviar";
 
 export default {
   command: ['acortar', 'shorturl', 'shorten', 'acorta'],
@@ -34,7 +35,7 @@ export default {
         return msg.reply(`《✧》 No se pudo acortar el enlace. Intenta más tarde.`);
       }
       const cuerpo = `🔗 *Enlace acortado:*\n\n> ${short}\n\n_Original:_ ${url}`;
-      await sendInteractive(sock, msg.chat, {
+      await enviar(sock, msg.chat, {
         body: cuerpo,
         footer: "TinyURL · Shin-MD",
         buttons: [ctaCopy("📋 Copiar el corto", short), ctaUrl("🌐 Abrirlo", short)],

@@ -7,7 +7,8 @@
 // Adivina el número — juego con botones interactivos
 
 import sharp from 'sharp';
-import { quickReply, sendInteractive } from '#interactive';
+import { quickReply } from '#interactive';
+import { enviar } from "#motor/enviar";
 
 const games = new Map();
 
@@ -88,7 +89,7 @@ async function showClue(sock, ctx, state, clue) {
     quickReply('❌ Salir', 'adivina:stop'),
   ];
 
-  await sendInteractive(sock, ctx.chatId, {
+  await enviar(sock, ctx.chatId, {
     image: img,
     body: clue,
     footer: `🎯 Intento ${state.attempts + 1}/${state.max}`,

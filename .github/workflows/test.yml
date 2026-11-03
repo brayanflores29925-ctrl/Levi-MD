@@ -17,5 +17,8 @@ jobs:
           node-version: 22
       - name: Instalar dependencias (incluye parche de Baileys)
         run: npm ci --no-audit --no-fund
+      - name: Estado del motor (parche de vinculación)
+        run: node scripts/patch-baileys-pairing.cjs
+
       - name: Suite de tests
         run: npm test

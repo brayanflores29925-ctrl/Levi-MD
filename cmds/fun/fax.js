@@ -9,7 +9,8 @@
 //  Si los botones fallan, se manda lo mismo en texto plano.
 // ═══════════════════════════════════════════════════════════════════
 
-import { sendInteractive, quickReply, ctaUrl } from "#interactive";
+import { quickReply, ctaUrl } from "#interactive";
+import { enviar } from "#motor/enviar";
 import { pickRandom, randomInt } from "#lib/random";
 import { tiempoCorto } from "#lib/tiempo";
 
@@ -83,7 +84,7 @@ export default {
       `👤 ${ctx.pushName || "Anónimo"}`;
 
     try {
-      await sendInteractive(sock, ctx.chatId, {
+      await enviar(sock, ctx.chatId, {
         body,
         footer: "反魂 Shin-MD — No es un bot, es infraestructura.",
         buttons: [

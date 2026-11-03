@@ -6,7 +6,7 @@
  */
 import db from '../../src/services/ginko-db.js';
 import { generateProfileCard } from '../../src/lib/cardGenerator.js';
-import { sendInteractive } from "#interactive";
+import { enviar } from "#motor/enviar";
 import { atajo } from "#lib/ui-kit";
 import { xpRange } from "#lib/xp";
 
@@ -60,7 +60,7 @@ export default {
       });
     } catch {}
 
-    await sendInteractive(sock, chatId, {
+    await enviar(sock, chatId, {
       body: txt,
       footer: 'Nivel · Shin-MD',
       buttons: [

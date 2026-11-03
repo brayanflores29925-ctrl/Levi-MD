@@ -7,7 +7,8 @@
 // Trivia — juego de preguntas con botones interactivos
 
 import sharp from 'sharp';
-import { quickReply, sendInteractive } from '#interactive';
+import { quickReply } from '#interactive';
+import { enviar } from "#motor/enviar";
 
 const QUESTIONS = [
   { q: '¿Cuál es el planeta más grande del sistema solar?', opts: ['Marte', 'Júpiter', 'Saturno', 'Neptuno'], ans: 1 },
@@ -137,7 +138,7 @@ async function showQuestion(sock, ctx, state) {
     ...q.opts.map((texto, i) => `${String.fromCharCode(65 + i)}) ${texto}`),
   ].join('\n');
 
-  await sendInteractive(sock, ctx.chatId, {
+  await enviar(sock, ctx.chatId, {
     image: img,
     body: cuerpo,
     footer: '🎮 Trivia · Shin-MD',

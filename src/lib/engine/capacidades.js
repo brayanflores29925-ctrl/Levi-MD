@@ -28,9 +28,18 @@
 //    WA_SIN_CABECERA=1                      fuerza "tarjeta"
 //    SHIN_BOTONES_GRUPO=0                   grupos en modo "texto"
 //
+//  Prioridad, de más fuerte a más débil:
+//    1. WA_CAPAS (el .env manda sobre todo)
+//    2. la excepción guardada de ESE chat (memoria.js, se pone con .botones)
+//    3. canal → texto
+//    4. grupo con SHIN_BOTONES_GRUPO=0 → texto
+//    5. WA_SIN_CABECERA=1 → tarjeta
+//    6. completo
+//
 //  REGLA: este archivo no envía nada ni toca la red; solo responde.
 //  Así se puede probar entero sin abrir una sesión.
 // ═══════════════════════════════════════════════════════════════════
+import { nivelRecordado } from "./memoria.js";
 
 /** Los tres niveles, congelados: nadie los muta por accidente. */
 export const NIVELES = Object.freeze({
@@ -57,6 +66,9 @@ export function esGrupo(jid) {
 export function nivelDe(jid) {
   const forzado = String(process.env.WA_CAPAS || "auto").trim().toLowerCase();
   if (forzado !== "auto" && NIVELES[forzado]) return forzado;
+
+  const recordado = nivelRecordado(jid);
+  if (recordado) return recordado;
 
   if (esCanal(jid)) return "texto";
   if (esGrupo(jid) && process.env.SHIN_BOTONES_GRUPO === "0") return "texto";

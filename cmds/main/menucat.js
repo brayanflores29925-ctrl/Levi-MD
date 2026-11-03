@@ -25,11 +25,8 @@ import {
   getTimeGreeting,
   toSmallCaps,
 } from "../../src/lib/formatter.js";
-import {
-  sendInteractive,
-  quickReply,
-  singleSelect,
-} from "../../src/commands/interactive.js";
+import { quickReply, singleSelect } from "../../src/commands/interactive.js";
+import { enviar } from "#motor/enviar";
 import { getChannelContext } from "../../src/lib/contextBuilder.js";
 import log from "#logger";
 
@@ -241,7 +238,7 @@ export default {
       ];
 
       try {
-        await sendInteractive(sock, ctx.chatId, {
+        await enviar(sock, ctx.chatId, {
           title: `✨ ${toSmallCaps("shin-md")} · Categorías`,
           body,
           footer: `反魂 Shin-MD · github.com/riokuroxi-svg/Shin-MD\nCódigo: Creado por riokuroxi-svg`,
@@ -300,7 +297,7 @@ export default {
     ];
 
     try {
-      await sendInteractive(sock, ctx.chatId, {
+      await enviar(sock, ctx.chatId, {
         title: `${emoji} ${toSmallCaps("shin-md")} · ${label}`,
         body,
         footer: `反魂 Shin-MD · Creado por riokuroxi-svg\n${list.length} comandos en ${label}`,

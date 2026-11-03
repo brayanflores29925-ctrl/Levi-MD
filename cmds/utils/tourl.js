@@ -8,7 +8,8 @@ import log from "#logger";
 import FormData from 'form-data';
 import fetch from 'node-fetch';
 import db from '../../src/services/ginko-db.js';
-import { sendInteractive, ctaCopy, ctaUrl } from "#interactive";
+import { ctaCopy, ctaUrl } from "#interactive";
+import { enviar } from "#motor/enviar";
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -118,7 +119,7 @@ export default {
 
       // El enlace, copiable de un toque: es lo único que el usuario
       // quiere de este comando y antes había que seleccionarlo a mano.
-      await sendInteractive(sock, msg.chat, {
+      await enviar(sock, msg.chat, {
         body: cuerpo,
         footer: `Caduca en ${tiempo}`,
         buttons: [ctaCopy("📋 Copiar el enlace", url), ctaUrl("🌐 Abrirlo", url)],

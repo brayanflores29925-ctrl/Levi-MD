@@ -9,7 +9,7 @@ import moment from 'moment-timezone';
 import db from '../../src/services/ginko-db.js';
 import defaultAvatar from '../../lib/default-avatar.js';
 import { generateProfileCard } from '../../src/lib/cardGenerator.js';
-import { sendInteractive } from "#interactive";
+import { enviar } from "#motor/enviar";
 import { atajo } from "#lib/ui-kit";
 import { xpRange } from "#lib/xp";
 
@@ -120,7 +120,7 @@ export default {
         atajo('✏️ Editar descripción', 'setdesc', usedPrefix),
       ];
 
-      await sendInteractive(sock, msg.chat, {
+      await enviar(sock, msg.chat, {
         body: profileText,
         footer: 'Perfil · Shin-MD',
         buttons: atajosPerfil,

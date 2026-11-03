@@ -66,7 +66,8 @@ function etiquetaDe(boton) {
   if (esBotonNativo(boton)) {
     try {
       const p = JSON.parse(boton.buttonParamsJson);
-      const texto = p.display_text || p.text || boton.name;
+      const seccion = Array.isArray(p.sections) ? p.sections[0] : null;
+      const texto = p.display_text || p.text || seccion?.title || boton.name;
       if (p.url) return `${texto} → ${p.url}`;
       if (p.copy_code) return `${texto} → ${p.copy_code}`;
       return texto;
@@ -135,8 +136,25 @@ async function enviarPlano(sock, jid, contenido, botones, opciones) {
  * @param {object} [opciones] { citado, hoja, ai }
  * @returns {Promise<object|null>} el mensaje enviado, o null si no salió
  */
-export async function enviar(sock, jid, contenido = {}, opciones = {}) {
+export async function enviar(sock, jid, crudo = {}, opciones = {}) {
   if (!sock || typeof sock.sendMessage !== "function") return null;
+
+  // Acepta los nombres viejos de sendInteractive (body, footer, buttons,
+  // image, video, quoted, fallbackText...) además de los nuevos. Así los
+  // comandos se migran cambiando UNA palabra: sendInteractive → enviar.
+  const contenido = {
+    texto: crudo.texto ?? crudo.body,
+    pie: crudo.pie ?? crudo.footer,
+    titulo: crudo.titulo ?? crudo.title,
+    imagen: crudo.imagen ?? crudo.image,
+    video: crudo.video,
+    gifPlayback: crudo.gifPlayback,
+    botones: crudo.botones ?? crudo.buttons,
+    respaldo: crudo.respaldo ?? crudo.fallbackText,
+    contexto: crudo.contexto ?? crudo.contextInfo,
+  };
+  const citado = opciones.citado ?? crudo.quoted ?? crudo.citado;
+  const hoja = opciones.hoja ?? crudo.hoja;
 
   const cap = capacidadesDe(jid);
   const botones = (Array.isArray(contenido.botones) ? contenido.botones : [])
@@ -153,9 +171,9 @@ export async function enviar(sock, jid, contenido = {}, opciones = {}) {
         video: cap.cabeceraConMedia ? contenido.video : undefined,
         gifPlayback: contenido.gifPlayback,
         buttons: botones,
-        hoja: opciones.hoja,
+        hoja,
         ai: opciones.ai,
-        quoted: opciones.citado,
+        quoted: citado,
         contextInfo: contenido.contexto,
         fallbackText: componerTexto(contenido, botones),
       });
@@ -165,7 +183,7 @@ export async function enviar(sock, jid, contenido = {}, opciones = {}) {
     }
   }
 
-  return enviarPlano(sock, jid, contenido, botones, opciones);
+  return enviarPlano(sock, jid, contenido, botones, { ...opciones, citado });
 }
 
 export default { enviar, botonesATexto };

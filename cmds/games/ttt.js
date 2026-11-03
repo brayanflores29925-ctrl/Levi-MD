@@ -8,7 +8,8 @@
 // El tablero se pinta con botones: tocas una celda y el bot actualiza el juego.
 // Cómo funciona: el botón manda "ttt a1" → el router lo reinyecta como comando.
 
-import { sendInteractive, quickReply } from "#interactive";
+import { quickReply } from "#interactive";
+import { enviar } from "#motor/enviar";
 
 const games = new Map(); // chatId -> estado de partida
 const TIMEOUT_MS = 120000;
@@ -136,7 +137,7 @@ export default {
       "\n\n💡 _Para jugar responde o escribe: .ttt a1, .ttt b2, .ttt c3_\n_Para rendirte: .ttt cancelar_";
 
     try {
-      await sendInteractive(sock, chatId, {
+      await enviar(sock, chatId, {
         body: header,
         footer: "反魂 Shin-MD · .ttt cancelar",
         buttons: boardButtons(game.board),
