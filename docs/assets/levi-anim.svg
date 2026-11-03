@@ -66,7 +66,7 @@
     <circle cx="72" cy="176" r="5" fill="#25D366" class="pulse"/>
     <text x="88" y="181">212 comandos</text>
     <circle cx="242" cy="176" r="5" fill="#EE3D86" class="pulse" style="animation-delay:.6s"/>
-    <text x="258" y="181">181/182 pruebas</text>
+    <text x="258" y="181">190/191 pruebas</text>
     <circle cx="412" cy="176" r="5" fill="#7CFFB2" class="pulse" style="animation-delay:1.2s"/>
     <text x="428" y="181">anti-ban nativo</text>
     <circle cx="586" cy="176" r="5" fill="#FF8FC0" class="pulse" style="animation-delay:1.8s"/>

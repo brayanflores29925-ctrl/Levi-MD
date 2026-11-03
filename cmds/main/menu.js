@@ -25,7 +25,8 @@ import {
   getVerifiedQuoted,
 } from "../../src/lib/contextBuilder.js";
 import { resolveChannel } from "../../src/lib/channel.js";
-import { sendInteractive, singleSelect, quickReply, ctaUrl, ctaCopy } from "#interactive";
+import { singleSelect, quickReply, ctaUrl, ctaCopy } from "#interactive";
+import { enviar } from "#motor/enviar";
 import db from "../../src/services/ginko-db.js";
 import { pickBanner, BRAND } from "#lib/theme";
 
@@ -294,17 +295,20 @@ export default {
         `_Selecciona una categoría en el botón desplegable de abajo._\n\n` +
         `📢 *Canal:* ${channelUrl}`;
 
-      await sendInteractive(sock, ctx.chatId, {
-        title: "✨ LEVI-BOT " + version,
-        body: interactiveBody,
-        footer: "Levi-Bot • Bot de WhatsApp\nBasado en Shin-MD por riokuroxi-svg",
-        video: videoAsset,
-        gifPlayback: true,
-        buttons: menuButtons,
-        hoja: menuHoja,
-        quoted: ctx.full,
-        fallbackText: headerText + readMore + fullCategoriesList + `\n📢 *Canal Oficial:* ${channelUrl}`,
-      });
+      await enviar(
+        sock,
+        ctx.chatId,
+        {
+          titulo: "✨ LEVI-BOT " + version,
+          texto: interactiveBody,
+          pie: "Levi-Bot • Bot de WhatsApp\nBasado en Shin-MD por riokuroxi-svg",
+          video: videoAsset,
+          gifPlayback: true,
+          botones: menuButtons,
+          respaldo: headerText + readMore + fullCategoriesList + `\n📢 *Canal Oficial:* ${channelUrl}`,
+        },
+        { hoja: menuHoja, citado: ctx.full }
+      );
       return null;
     }
 
@@ -323,19 +327,11 @@ export default {
         fullCategoriesList +
         `\n📢 *Canal Oficial:* ${channelUrl}\n_Levi-MD v${version} · Base: Shin-MD por riokuroxi-svg_`;
 
-      if (banner) {
-        await sock.sendMessage(
-          ctx.chatId,
-          { image: banner, caption: finalContent, contextInfo: channelCtx },
-          { quoted: ctx.full }
-        );
-        return null;
-      }
-
-      await sock.sendMessage(
+      await enviar(
+        sock,
         ctx.chatId,
-        { text: finalContent, contextInfo: channelCtx },
-        { quoted: ctx.full }
+        { texto: finalContent, imagen: banner, contexto: channelCtx },
+        { citado: ctx.full }
       );
       return null;
     }
@@ -349,16 +345,19 @@ export default {
       `_Selecciona una categoría en el botón desplegable de abajo para ver sus comandos._\n\n` +
       `📢 *Canal:* ${channelUrl}`;
 
-    await sendInteractive(sock, ctx.chatId, {
-      title: "✨ LEVI-BOT " + version,
-      body: interactiveBody,
-      footer: "Levi-Bot • Bot de WhatsApp\nBasado en Shin-MD por riokuroxi-svg",
-      image: banner,
-      buttons: menuButtons,
-      hoja: menuHoja,
-      quoted: ctx.full,
-      fallbackText: headerText + readMore + fullCategoriesList + `\n📢 *Canal Oficial:* ${channelUrl}`,
-    });
+    await enviar(
+      sock,
+      ctx.chatId,
+      {
+        titulo: "✨ LEVI-BOT " + version,
+        texto: interactiveBody,
+        pie: "Levi-Bot • Bot de WhatsApp\nBasado en Shin-MD por riokuroxi-svg",
+        imagen: banner,
+        botones: menuButtons,
+        respaldo: headerText + readMore + fullCategoriesList + `\n📢 *Canal Oficial:* ${channelUrl}`,
+      },
+      { hoja: menuHoja, citado: ctx.full }
+    );
 
     return null;
   },

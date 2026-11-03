@@ -46,7 +46,8 @@
     "#economy": "./src/services/economy.js",
     "#events": "./cmds/events.js",
     "#core/exif": "./src/lib/exif.js",
-    "#lib/*": "./src/lib/*.js"
+    "#lib/*": "./src/lib/*.js",
+    "#motor/*": "./src/lib/engine/*.js"
   },
   "engines": {
     "node": ">=22.5.0",
