@@ -56,6 +56,27 @@ for (const p of [FILES.barrel, FILES.socket, FILES.recv]) {
   if (!fs.existsSync(p)) fail(`no existe ${p}. ¿Se ejecutó "npm install" completo?`);
 }
 
+// ── Puerta de versión ───────────────────────────────────────────────────────
+// Este parche es SOLO para 6.7.24. A partir de 7.x el arreglo de vinculación
+// viene de fábrica: el archivo companion-reg-client-utils.js, que aquí se
+// crea a mano, ya existe en el paquete oficial (lo comprobó la prueba de
+// arranque: el bot pide el código de emparejamiento sin parchear nada).
+// Sin esta puerta, `npm install` con baileys 7 escupía un ❌ rojo en cada
+// arranque avisando de algo que no había que arreglar.
+{
+  const pkgBaileys = path.join(__dirname, '..', 'node_modules', 'baileys', 'package.json');
+  try {
+    const version = String(JSON.parse(fs.readFileSync(pkgBaileys, 'utf8')).version || '');
+    const mayor = Number(version.split('.')[0].replace(/\D/g, ''));
+    if (mayor >= 7) {
+      ok(`baileys ${version}: el arreglo de vinculación viene incluido. Este parche solo aplica a 6.7.24, no se toca nada.`);
+      process.exit(0);
+    }
+  } catch {
+    // sin package.json legible se sigue con la comprobación de siempre
+  }
+}
+
 // Reemplaza exactamente UNA ocurrencia; falla si el ancla no está o está duplicada.
 function replaceOnce(file, find, replace, label) {
   const text = fs.readFileSync(file, 'utf8');

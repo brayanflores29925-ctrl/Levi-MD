@@ -13,7 +13,7 @@
 ![Comandos](https://img.shields.io/badge/comandos-212-25D366?style=for-the-badge&labelColor=0B1512)
 ![Pruebas](https://img.shields.io/badge/pruebas-190%2F191-EE3D86?style=for-the-badge&labelColor=0B1512)
 ![Node](https://img.shields.io/badge/node-%E2%89%A5%2022.5-339933?style=for-the-badge&labelColor=0B1512)
-![Baileys](https://img.shields.io/badge/baileys-6.7.24-2F1A24?style=for-the-badge&labelColor=0B1512)
+![Baileys](https://img.shields.io/badge/baileys-7.0.0--rc14-2F1A24?style=for-the-badge&labelColor=0B1512)
 ![Licencia](https://img.shields.io/badge/licencia-AGPL--3.0--only-EE3D86?style=for-the-badge&labelColor=0B1512)
 
 <sub>
