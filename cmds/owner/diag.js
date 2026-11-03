@@ -17,6 +17,7 @@
 // ═══════════════════════════════════════════════════════════════════
 import { esElOwner, soloDigitos, esLid } from "#lib/owner-check";
 import db from "../../src/services/ginko-db.js";
+import { estadoGuardia, modoSeguro } from "#lib/wa-guard";
 
 function ocultar(num = "") {
     const d = soloDigitos(num);
@@ -50,8 +51,15 @@ export default {
             `▸ Yo soy el dueño: *${quien.ok ? "SÍ" : "NO"}* — ${quien.motivo}`,
             "",
             `▸ Nodo \`bot\` (✨ IA): ${nodoBot ? "ENCENDIDO ⚠️ (puede causar «Actualizar WhatsApp»)" : "apagado ✅ (recomendado)"}`,
+            `▸ Modo seguro de mensajes: ${modoSeguro() ? "ON ✅" : "OFF ⚠️"}`,
             `▸ Node: ${process.version}`,
         ];
+
+        const guardia = estadoGuardia();
+        const degradados = Object.entries(guardia.degradados || {});
+        lineas.push(
+            `▸ Mensajes degradados a texto: ${degradados.length ? degradados.map(([t, n]) => `${t}×${n}`).join(", ") : "ninguno"}`,
+        );
 
         if (args[0] === "botones" || args[0] === "boton") {
             try {

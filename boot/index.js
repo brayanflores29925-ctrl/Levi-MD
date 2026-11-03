@@ -324,7 +324,14 @@ async function main() {
   // 21 comandos portados (self, kick, setprefix, setowner...) leen
   // global.owner y global.mess. Sin definirlos, el primer uso lanza
   // TypeError en runtime (global.owner.map sobre undefined).
-  globalThis.owner = ownerNum ? Array.from(new Set([ownerNum, ownerAlias].filter(Boolean))) : [];
+  // Varios dueños: OWNERS=504...,521... (coma). El principal sigue siendo
+// OWNER_NUMBER; los demás se suman a globalThis.owner y al candado de
+// #lib/owner-check. Así el bot puede tener dueño y co-dueño a la vez.
+const ownersExtra = String(process.env.OWNERS || "")
+  .split(",")
+  .map((n) => n.replace(/\D/g, ""))
+  .filter(Boolean);
+globalThis.owner = Array.from(new Set([ownerNum, ownerAlias, ...ownersExtra].filter(Boolean)));
   globalThis.links = {
     channel: process.env.CHANNEL_LINK || "https://whatsapp.com/channel/0029VbDVFpSGJP89hfZUe522",
     channelCode: process.env.CHANNEL_CODE || "0029VbDVFpSGJP89hfZUe522",

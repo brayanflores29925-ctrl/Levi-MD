@@ -25,6 +25,7 @@ import path from "path";
 import chalk from "chalk";
 import NodeCache from "node-cache";
 import log from "#logger";
+import { instalarGuardia, normalizarContenido, normalizarNodos, asegurarContexto } from "../lib/wa-guard.js";
 import { estilizar } from "#lib/theme";
 
 export { getCachedMeta, setCachedMeta, deleteCachedMeta };
@@ -175,6 +176,7 @@ export function connectSocket(engine, opts) {
     });
 
     sock = s;
+    instalarGuardia(s); // idempotente: refuerza sendMessage/relayMessage
     patchGroupMetadata(s);
     s.msgRetryCounterCache = msgRetryCounterCache;
     s.ev.on("creds.update", saveCreds);
@@ -199,6 +201,15 @@ export function connectSocket(engine, opts) {
     const origSM = s.sendMessage.bind(s);
     const sendQueue = engine.getSendQueue();
     s.sendMessage = async (j, c, o) => {
+      // ── Guardián (ver #lib/wa-guard) ──────────────────────────────
+      // Antes del estilizado: si el mensaje lleva un tipo que los
+      // clientes viejos no pintan, se degrada a texto AQUÍ y no sale
+      // nunca el aviso "Actualizar WhatsApp".
+      {
+        const r = normalizarContenido(c);
+        if (r.degradado) log.warn("wa-guard: " + r.degradado + " degradado a texto (" + (r.content?.text || "").slice(0, 40) + ")");
+        c = r.content;
+      }
       // B2.2: reacciones, borrados y ediciones NO son mensajes nuevos para
       // WhatsApp (no generan notificación ni cuentan como "envío masivo"),
       // así que NO deben gastar la cuota diaria del warm-up. Siguen pasando
@@ -242,6 +253,15 @@ export function connectSocket(engine, opts) {
     // closure relayMessage, no esta propiedad, así no hay recursión.
     const origRelay = s.relayMessage.bind(s);
     s.relayMessage = async (j, m, o) => {
+      // ── Guardián ──────────────────────────────────────────────────
+      // Los interactivos, eventos y álbumes viajan por aquí. Se reparan
+      // (messageVersion, cabecera, botones) o se degradan a texto.
+      {
+        const r = normalizarContenido(m);
+        if (r.degradado) log.warn("wa-guard: " + r.degradado + " degradado a texto en relayMessage");
+        m = asegurarContexto(r.content);
+        if (o && o.additionalNodes) o = { ...o, additionalNodes: normalizarNodos(o.additionalNodes) };
+      }
       const text = m?.conversation || m?.extendedTextMessage?.text || m?.imageMessage?.caption || "";
       return sendQueue.enqueue(() => origRelay(j, m, o), {
         messageLength: String(text).length,
