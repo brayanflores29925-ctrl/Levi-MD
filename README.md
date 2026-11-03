@@ -553,6 +553,8 @@ rompan):
 |---|---|
 | `assets/levi-mascota.png` | mascota del bot (avatar, menús) |
 | `assets/levi-card.jpg` | tarjeta de presentación del README |
+| `assets/rioku-chibi.png` | avatar de riokuroxi-svg (viene de Shin-MD) |
+| `assets/rioku-chibi-card.jpg` | tarjeta de créditos del README |
 | `assets/imagenes/levi-banner.png` | banner del menú (día y noche) |
 | `assets/imagenes/levi-menu-1..3.jpg` | rotación de imágenes de `.menu` / `.menucat` |
 | `media/covers/levi-cover-1..3.jpg` | **portadas del `.play`** y del audio |
@@ -686,6 +688,19 @@ npm run lint
 ## 📄 Licencia y atribución
 
 **AGPL-3.0-only** · ver [LICENSE](LICENSE) y [NOTICE](NOTICE).
+
+<br>
+
+<div align="center">
+
+<img src="assets/rioku-chibi-card.jpg" alt="riokuroxi-svg, autor de Shin-MD" width="250">
+
+<br>
+
+<sub><b>riokuroxi-svg</b> · el chibi es su avatar · autor de Shin-MD, el núcleo<br>
+sobre el que corre este bot y el que puso el anti-ban</sub>
+
+</div>
 
 Este proyecto es una **obra derivada** de **Shin-MD** por **riokuroxi-svg**
 ([github.com/riokuroxi-svg/Shin-MD](https://github.com/riokuroxi-svg/Shin-MD)). El `NOTICE` se conserva sin
