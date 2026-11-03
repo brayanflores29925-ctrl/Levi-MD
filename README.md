@@ -27,7 +27,7 @@
 
 </div>
 
-<svg width="100%" height="6" viewBox="0 0 900 6"><defs><linearGradient id="d1" x1="0" x2="1"><stop offset="0" stop-color="#25D366" stop-opacity="0"/><stop offset=".5" stop-color="#25D366"/><stop offset="1" stop-color="#EE3D86" stop-opacity="0"/></linearGradient></defs><rect width="900" height="2" y="2" fill="url(#d1)"/></svg>
+---
 
 ## 🧩 Qué es esto
 
@@ -562,6 +562,27 @@ rompan):
 <img src="media/covers/levi-cover-2.jpg" alt="Portada del play" width="22%">
 
 </div>
+
+<details>
+<summary><b>Contador de visitas animado (estilo Moe Counter)</b></summary>
+
+El contador con dibujos pixel-art que se ve en otros README **no se puede dejar
+puesto aquí**: `count.getloli.com` está detrás de Cloudflare y GitHub lo sirve
+como imagen rota. Si quieres tenerlo, pega esta línea al principio del README
+(abajo del todo funciona igual) **y comprueba en GitHub que carga**:
+
+```html
+<img src="https://count.getloli.com/get/@levi-md?theme=green" alt="visitas">
+```
+
+Temas disponibles: `green`, `moebooru`, `rule34`, `gelbooru`, `miku`, `asoul`,
+`minecraft`… Cambia `green` por el que te guste y `@levi-md` por el nombre que
+quieras (el contador es por nombre: si lo cambias, empieza de cero).
+
+Alternativa que **sí** funciona siempre (sin dibujos, pero sin romperse):
+`https://komarev.com/ghpvc/?username=brayanflores29925-ctrl&color=25D366`.
+
+</details>
 
 <details>
 <summary><b>Cambiar el arte sin tocar código</b></summary>
