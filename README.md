@@ -51,42 +51,55 @@ abajo.
 | **Datos** | SQLite con respaldo JSON automático |
 | **Licencia** | AGPL-3.0-only |
 
-## ⚡ Instalación en 5 minutos
+## ⚡ Instalación en un comando
+
+**Android (Termux).** Instala Termux desde [F-Droid](https://f-droid.org/packages/com.termux/)
+—la de Play Store está abandonada y rompe los paquetes— y pega esto:
 
 ```bash
-git clone https://github.com/brayanflores29925-ctrl/Levi-MD
-cd Levi-MD
-npm install
-cp .env.example .env
-npm start
+pkg update -y && pkg install -y curl
+d=$(mktemp -d) && cd "$d"
+curl -fsSL https://raw.githubusercontent.com/brayanflores29925-ctrl/Levi-MD/v3.0.4/install.sh -o install.sh
+curl -fsSL https://raw.githubusercontent.com/brayanflores29925-ctrl/Levi-MD/v3.0.4/SHA256SUMS -o SHA256SUMS
+sha256sum -c SHA256SUMS && bash install.sh --version v3.0.4
 ```
+
+La última línea solo ejecuta si la huella coincide: instala una versión
+concreta, no lo que haya en `main` ese día.
+
+Luego se arranca así:
+
+```bash
+cd ~/Levi-MD && npm start -- --code
+```
+
+`--code` muestra un **código de 8 caracteres**. En el teléfono del bot:
+**Ajustes → Dispositivos vinculados → Vincular con número de teléfono** y lo
+escribes ahí.
 
 1. En `.env` pon **tu número personal** en `OWNER_NUMBER` (solo dígitos, sin `+`).
-2. `npm start` imprime un **código de 8 dígitos**.
-3. En el teléfono del bot: **Ajustes → Dispositivos vinculados → Vincular un
-   dispositivo → Vincular con número de teléfono**.
-4. Escríbele `.menu` desde tu número.
+2. Escríbele `.menu` desde tu número.
 
-<details>
-<summary><b>📱 Termux (Android) y dejarlo siempre encendido</b></summary>
+**Servidor (VPS).** El mismo bloque de arriba, y para arrancarlo:
 
 ```bash
-pkg update && pkg install nodejs-lts git ffmpeg
-git clone https://github.com/brayanflores29925-ctrl/Levi-MD && cd Levi-MD
-npm install && cp .env.example .env && npm start
+cd ~/Levi-MD && npm start
 ```
 
-```bash
-npm install -g pm2
-pm2 start index.js --name levi && pm2 save
-pm2 logs levi        # ver qué pasa
-pm2 restart levi     # reiniciar
-```
+**Ya lo tienes instalado.** Un solo archivo manda sobre todo:
+
+| Quiero… | Comando |
+|---|---|
+| actualizar conservando mi sesión | `bash ~/Levi-MD/install.sh --update --version v3.0.4` |
+| arreglar una instalación rota | `bash ~/Levi-MD/install.sh --repair` |
+| saber si todo está bien | `bash ~/Levi-MD/install.sh --verify` |
+| desinstalar y guardar mis datos | `bash ~/Levi-MD/install.sh --uninstall` |
+
+`--update` no toca `.env`, `Sessions/` ni `data/`, y antes de moverse hace un
+respaldo de la base.
 
 ⚠️ Usa un **número secundario**. Ningún bot es inmune a un ban: la diferencia es
 cuánto tarda en pasar.
-
-</details>
 
 ## 🎛️ Configuración que importa
 

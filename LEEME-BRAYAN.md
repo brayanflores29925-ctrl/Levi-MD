@@ -22,17 +22,37 @@ Si dice menos, instala Node 22 desde <https://nodejs.org> (o con `nvm`).
 
 ---
 
-## 2. Descargar el bot
+## 2. Instalar el bot
+
+Un solo bloque. Cópialo entero, pégalo en la terminal y espera:
 
 ```bash
-git clone https://github.com/brayanflores29925-ctrl/Levi-MD
-cd Levi-MD
-npm install
+pkg update -y && pkg install -y curl
+d=$(mktemp -d) && cd "$d"
+curl -fsSL https://raw.githubusercontent.com/brayanflores29925-ctrl/Levi-MD/v3.0.4/install.sh -o install.sh
+curl -fsSL https://raw.githubusercontent.com/brayanflores29925-ctrl/Levi-MD/v3.0.4/SHA256SUMS -o SHA256SUMS
+sha256sum -c SHA256SUMS && bash install.sh --version v3.0.4
 ```
 
-`npm install` tarda un rato la primera vez y descarga las librerías. Si sale
-algún aviso amarillo, se puede ignorar. **Rojo = ahí sí hay problema** (cópialo
-y mándalo).
+(En una computadora, salta la primera línea: solo hace falta en Termux.)
+
+Eso tarda un rato: descarga el bot y sus librerías. Si sale algún aviso
+amarillo, se puede ignorar. **Rojo = ahí sí hay problema** (cópialo y mándalo).
+
+Al final te dice en qué carpeta quedó y el comando para arrancarlo. Tiene que
+decir **`Levi-MD 3.0.4 instalado`**.
+
+Si algo se corta a mitad, se vuelve a pegar el mismo bloque: continúa donde se
+quedó, no lo rompe.
+
+### Para actualizar más adelante
+
+```bash
+bash ~/Levi-MD/install.sh --update --version v3.0.4
+```
+
+No toca tu `.env` ni tu sesión de WhatsApp, y antes de moverse guarda un
+respaldo de la base. Para saber si todo está bien: `bash ~/Levi-MD/install.sh --verify`.
 
 ---
 
