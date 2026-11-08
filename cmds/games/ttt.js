@@ -106,7 +106,7 @@ export default {
 
       if (checkWin(game.board, "X")) {
         games.delete(chatId);
-        return "🎉 *¡GANASTE!* 🎉\n\n" + renderBoard(game.board) + "\n\n_反魂 Shin-MD_";
+        return "🎉 *¡GANASTE!* 🎉\n\n" + renderBoard(game.board) + "\n\n_❦ Levi-Bot_";
       }
       if (isFull(game.board)) {
         games.delete(chatId);
@@ -139,7 +139,7 @@ export default {
     try {
       await enviar(sock, chatId, {
         body: header,
-        footer: "反魂 Shin-MD · .ttt cancelar",
+        footer: "❦ Levi-Bot · .ttt cancelar",
         buttons: boardButtons(game.board),
         quoted: ctx.full,
         fallbackText: boardText,

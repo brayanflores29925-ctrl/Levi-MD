@@ -139,7 +139,7 @@ async function doRound(sock, ctx, state) {
   await enviar(sock, ctx.chatId, {
     image: img,
     body: `⚔️ Ronda ${state.round}/${state.total}\n❤️ ${state.lives} | 🏆 ${state.score}`,
-    footer: '🎮 Kuro Slash · Shin-MD',
+    footer: '🎮 Kuro Slash · Levi-Bot',
     buttons,
     quoted: ctx.full,
   });

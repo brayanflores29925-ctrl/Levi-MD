@@ -57,7 +57,8 @@ installAntiCrash();
   }
   let __ver = "dev";
   try { __ver = JSON.parse(fs.readFileSync(path.join(__root, "package.json"), "utf8")).version || __ver; } catch {}
-  log.ui(chalk.magenta("Shin-MD v" + __ver + " - Powered by riokuroxi-svg"));
+  log.ui(chalk.magenta("Levi-Bot v" + __ver + " - Levi-MD"));
+  log.ui(chalk.gray("          base: Shin-MD de riokuroxi-svg (AGPL-3.0)"));
 }
 
 // Red de seguridad de vinculación (companion_reg_refresh):
@@ -98,7 +99,7 @@ function hasValidSession(sessionDir) {
 }
 
 function printBanner() {
-  cfonts.say("SHIN-MD", {
+  cfonts.say("LEVI-MD", {
     font: "block", align: "center",
     gradient: ["#ff7eb3", "#f97316"],
     letterSpacing: 1, space: false,
@@ -107,7 +108,8 @@ function printBanner() {
     font: "chrome", align: "center",
     gradient: ["blue", "magenta"], letterSpacing: 2,
   });
-  log.ui(chalk.cyan("      🍁 Hecho por riokuroxi-svg · Anti-ban nativo") + "\n");
+  log.ui(chalk.cyan("      👑 Levi-Bot · comunidad Levi-MD") + "\n");
+  log.ui(chalk.gray("      núcleo: Shin-MD por riokuroxi-svg · AGPL-3.0") + "\n");
 }
 
 function logIncomingMessage(ctx, usedPrefix) {
@@ -118,7 +120,7 @@ function logIncomingMessage(ctx, usedPrefix) {
   const boxColor = isCmd ? chalk.hex("#00ff88") : chalk.hex("#38bdf8");
   log.ui("");
   log.ui(boxColor("  ╭───────────────────────────────────────"));
-  log.ui(boxColor("  │") + chalk.cyan("  Bot: ") + chalk.greenBright(process.env.BOT_JID || "Shin-MD"));
+  log.ui(boxColor("  │") + chalk.cyan("  Bot: ") + chalk.greenBright(process.env.BOT_JID || "Levi-MD"));
   log.ui(boxColor("  │") + chalk.yellow("  Hora: ") + chalk.yellowBright(t));
   log.ui(boxColor("  │") + chalk.blueBright("  Usuario: ") + chalk.white(name));
   log.ui(boxColor("  │") + chalk.magenta("  Remitente: ") + chalk.magentaBright(ctx.senderId || ctx.chatId));
@@ -134,7 +136,7 @@ function logCommand(ctx, cmdName, ms) {
   const boxColor = chalk.hex("#00ff88");
   log.ui("");
   log.ui(boxColor("  ╭───────────────────────────────────────"));
-  log.ui(boxColor("  │") + chalk.cyan("  Bot: ") + chalk.greenBright(process.env.BOT_JID || "Shin-MD"));
+  log.ui(boxColor("  │") + chalk.cyan("  Bot: ") + chalk.greenBright(process.env.BOT_JID || "Levi-MD"));
   log.ui(boxColor("  │") + chalk.yellow("  Hora: ") + chalk.yellowBright(t));
   log.ui(boxColor("  │") + chalk.blueBright("  Usuario: ") + chalk.white(name));
   log.ui(boxColor("  │") + chalk.magenta("  Grupo: ") + chalk.white(g));
@@ -335,7 +337,7 @@ globalThis.owner = Array.from(new Set([ownerNum, ownerAlias, ...ownersExtra].fil
   globalThis.links = {
     channel: process.env.CHANNEL_LINK || "https://whatsapp.com/channel/0029VbDVFpSGJP89hfZUe522",
     channelCode: process.env.CHANNEL_CODE || "0029VbDVFpSGJP89hfZUe522",
-    channelName: process.env.CHANNEL_NAME || "Shin-MD Official Channel",
+    channelName: process.env.CHANNEL_NAME || "Levi-MD · Canal oficial",
     instagram: process.env.INSTAGRAM_LINK || "https://www.instagram.com/__ikg.05",
     github: "https://github.com/riokuroxi-svg/Shin-MD",
     support: process.env.SUPPORT_LINK || "",

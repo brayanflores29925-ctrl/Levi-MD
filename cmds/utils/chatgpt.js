@@ -131,7 +131,7 @@ export default {
     try {
       const historial = memoria[chatId] || [];
       const systemPrompt =
-        'Eres Shin-MD, un asistente inteligente de WhatsApp creado por riokuroxi-svg. '
+        'Eres Levi-Bot, un asistente inteligente de WhatsApp del proyecto Levi-MD. '
         + 'Responde siempre en español, de forma clara, educada, concisa y con formato markdown pulido. '
         + 'Si te envían una imagen, descríbela con precisión.';
 

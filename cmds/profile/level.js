@@ -62,7 +62,7 @@ export default {
 
     await enviar(sock, chatId, {
       body: txt,
-      footer: 'Nivel · Shin-MD',
+      footer: 'Nivel · Levi-Bot',
       buttons: [
         atajo('🏆 Tabla de niveles', 'lboard', usedPrefix),
         atajo('👤 Mi perfil', 'profile', usedPrefix),

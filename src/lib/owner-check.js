@@ -26,6 +26,8 @@
 //  Funciones puras: se pueden probar sin sesión y sin base de datos.
 // ═══════════════════════════════════════════════════════════════════
 
+import { numerosDeCreadores } from "./creadores.js";
+
 /** "52155:12@s.whatsapp.net" → "52155" (solo dígitos, sin device ni dominio) */
 export function soloDigitos(valor = "") {
   return String(valor || "")
@@ -77,6 +79,10 @@ export function idsDelOwner({ sock = null, config = null, extra = [] } = {}) {
   push(extra);
   push(process.env.OWNERS ? process.env.OWNERS.split(",") : []);
   push(process.env.OWNER_NUMBER);
+  // Los añadidos con .addowner (data/creadores.json) tienen los mismos
+  // permisos que los del .env: si no, el comando diría "añadido" y la
+  // persona seguiría sin poder usar nada.
+  push(numerosDeCreadores());
   // El número del propio bot: si el mensaje lo escribe la cuenta
   // vinculada, es el dueño.
   if (sock?.user?.id) push(sock.user.id);

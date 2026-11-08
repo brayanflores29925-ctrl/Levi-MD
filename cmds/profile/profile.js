@@ -122,7 +122,7 @@ export default {
 
       await enviar(sock, msg.chat, {
         body: profileText,
-        footer: 'Perfil · Shin-MD',
+        footer: 'Perfil · Levi-Bot',
         buttons: atajosPerfil,
         image: cardBuffer || (perfilUrl || null),
         quoted: msg.full || msg,

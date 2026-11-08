@@ -141,7 +141,7 @@ async function showQuestion(sock, ctx, state) {
   await enviar(sock, ctx.chatId, {
     image: img,
     body: cuerpo,
-    footer: '🎮 Trivia · Shin-MD',
+    footer: '🎮 Trivia · Levi-Bot',
     buttons,
     // Son cinco botones (A, B, C, D y salir) y WhatsApp solo dibuja
     // tres: sin la hoja inferior, las dos últimas respuestas

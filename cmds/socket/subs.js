@@ -254,8 +254,8 @@ export async function startSubBot(msg, client, caption = '', isCode = false, pho
           sock: socks.client,
           jid: chatId,
           body: textMessage,
-          footer: `❦ Shin-MD · Instagram: ${instagramTag}`,
-          title: '❦ Shin-MD Sub-Bot',
+          footer: `❦ Levi-Bot · Instagram: ${instagramTag}`,
+          title: '❦ Levi-Bot · Sub-Bot',
           quoted: msg,
           buttons: [
             {
@@ -299,7 +299,7 @@ export async function startSubBot(msg, client, caption = '', isCode = false, pho
           `*›* Vincular *nuevo dispositivo*\n` +
           `*›* Escanea el código *QR.*\n\n` +
           `> ₊·( 🜸 ) ➭ Recuerda no usar tu cuenta principal para registrar un socket.\n\n` +
-          `❦ Shin-MD · Instagram: ${instagramTag}`;
+          `❦ Levi-Bot · Instagram: ${instagramTag}`;
 
         const msgQR = await socks.client.sendMessage(chatId, {
           image: qrBuffer,

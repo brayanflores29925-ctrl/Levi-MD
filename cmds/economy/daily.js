@@ -54,7 +54,7 @@ export default {
           jid: msg.chat,
           title: '⏳ Recompensa diaria',
           body: 'Ya reclamaste la de hoy.\n> Vuelve cuando se acabe la cuenta atrás.',
-          footer: '❦ Shin-MD · economía',
+          footer: '❦ Levi-Bot · economía',
           quoted: msg,
           buttons: [{ text: '💰 Mi saldo', id: '.balance' }],
           params: offerParams({

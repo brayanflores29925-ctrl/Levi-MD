@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  * Parte de Shin-MD. Mantener este header es obligatorio por AGPL.
  */
-// Demo — muestra las capacidades visuales, interactivas y multimedia de Shin-MD.
+// Demo — muestra las capacidades visuales, interactivas y multimedia de Levi-Bot.
 
 import { sendCarousel, quickReply, ctaUrl } from "#interactive";
 import { getChannelContext } from "../../src/lib/contextBuilder.js";
@@ -39,7 +39,7 @@ export default {
   name: "demo",
   aliases: ["showcase", "carousel", "reels", "demostracion"],
   category: "info",
-  description: "Muestra la suite estética e interactiva de Shin-MD 🎠",
+  description: "Muestra la suite estética e interactiva de Levi-Bot 🎠",
   usage: ".demo",
   cooldown: 5,
   ownerOnly: false,
@@ -53,7 +53,7 @@ export default {
     const cards = [
       {
         image: banner,
-        title: "✨ 反魂 Shin-MD Engine",
+        title: "✨ ❦ Levi-Bot Engine",
         body: "Arquitectura moderna Baileys MD sobre SQLite WAL.\nCero pérdida de sesión y anti-ban con jitter gaussiano.",
         footer: "Tecnología de última generación",
         buttons: [
@@ -112,9 +112,9 @@ export default {
     }
 
     await sendCarousel(sock, ctx.chatId, {
-      title: "反魂 Shin-MD Showcase",
+      title: "❦ Levi-Bot Showcase",
       body: "✨ *Demostración interactiva de capacidades*",
-      footer: "Shin-MD • Powered by riokuroxi-svg",
+      footer: "Levi-Bot · Levi-MD",
       cards,
       quoted: ctx.full,
     });

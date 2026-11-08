@@ -29,9 +29,9 @@ Un solo bloque. Cópialo entero, pégalo en la terminal y espera:
 ```bash
 pkg update -y && pkg install -y curl
 d=$(mktemp -d) && cd "$d"
-curl -fsSL https://raw.githubusercontent.com/brayanflores29925-ctrl/Levi-MD/v3.0.4/install.sh -o install.sh
-curl -fsSL https://raw.githubusercontent.com/brayanflores29925-ctrl/Levi-MD/v3.0.4/SHA256SUMS -o SHA256SUMS
-sha256sum -c SHA256SUMS && bash install.sh --version v3.0.4
+curl -fsSL https://raw.githubusercontent.com/brayanflores29925-ctrl/Levi-MD/v3.0.5/install.sh -o install.sh
+curl -fsSL https://raw.githubusercontent.com/brayanflores29925-ctrl/Levi-MD/v3.0.5/SHA256SUMS -o SHA256SUMS
+sha256sum -c SHA256SUMS && bash install.sh --version v3.0.5
 ```
 
 (En una computadora, salta la primera línea: solo hace falta en Termux.)
@@ -48,7 +48,7 @@ quedó, no lo rompe.
 ### Para actualizar más adelante
 
 ```bash
-bash ~/Levi-MD/install.sh --update --version v3.0.4
+bash ~/Levi-MD/install.sh --update --version v3.0.5
 ```
 
 No toca tu `.env` ni tu sesión de WhatsApp, y antes de moverse guarda un

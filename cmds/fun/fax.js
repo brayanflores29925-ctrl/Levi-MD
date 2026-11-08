@@ -86,7 +86,7 @@ export default {
     try {
       await enviar(sock, ctx.chatId, {
         body,
-        footer: "反魂 Shin-MD — No es un bot, es infraestructura.",
+        footer: "❦ Levi-Bot — No es un bot, es infraestructura.",
         buttons: [
           quickReply("🎲 Nuevo dato", "fax"),
           quickReply("📋 Menú", "menu"),
@@ -100,7 +100,7 @@ export default {
         `🎲 *Dato random #${num}*\n${dato}\n\n` +
         `💬 _${frase}_\n\n` +
         `⚙️ Uptime ${uptime} · RAM ${rssMB}MB · ${emoji} ${riesgo}%\n\n` +
-        `> 反魂 Shin-MD`;
+        `> ❦ Levi-Bot`;
       await sock.sendMessage(ctx.chatId, { text }, { quoted: ctx.full });
     }
   },

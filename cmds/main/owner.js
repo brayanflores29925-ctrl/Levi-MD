@@ -32,7 +32,7 @@ export function ownerDigits(ownerJid = "") {
  * vCard 3.0 del owner. Formato exacto que espera WhatsApp.
  * Puro y exportado para poder verificarlo sin sesión.
  */
-export function buildOwnerVCard({ name = "Owner", digits = "", org = "Shin-MD" } = {}) {
+export function buildOwnerVCard({ name = "Owner", digits = "", org = "Levi-MD" } = {}) {
   const safe = String(name).replace(/[\r\n;]/g, " ").trim() || "Owner";
   return [
     "BEGIN:VCARD",

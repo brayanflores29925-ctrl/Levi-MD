@@ -33,7 +33,7 @@ export default {
 
     const riskEmoji = risk.score >= 80 ? "🔴" : risk.score >= 50 ? "🟠" : risk.score >= 20 ? "🟡" : "🟢";
 
-    return "📊 *Estado · 反魂 Shin-MD*\n" +
+    return "📊 *Estado · ❦ Levi-Bot*\n" +
       "╭───────────────────\n" +
       "│  ⏱️ *Activo:* " + timeStr + "\n" +
       "│  🧠 *RAM:* " + memMB + " MB\n" +

@@ -22,7 +22,8 @@ export default {
   async handler(sock, ctx, engine) {
     return (
       "╭───「 ⚖️ *TÉRMINOS* 」───\n" +
-      "│  *Shin-MD* · AGPL-3.0-only\n" +
+      "│  *Levi-MD* · AGPL-3.0-only\n" +
+      "│  base: *Shin-MD* de riokuroxi-svg\n" +
       "│  © 2026 riokuroxi-svg\n" +
       "│  📥 Oficial › github.com/riokuroxi-svg/Shin-MD\n" +
       "│  ───────────────────\n" +
@@ -35,6 +36,8 @@ export default {
       "│    a ofrecer el código fuente completo.\n" +
       "│  ───────────────────\n" +
       "│  🏷️ *Shin-MD* es marca de riokuroxi-svg\n" +
+      "│    (el proyecto original del que\n" +
+      "│    Levi-MD es obra derivada)\n" +
       "│    (AGPL §7): no usarla para promocionar\n" +
       "│    clones u obras derivadas.\n" +
       "│  ───────────────────\n" +

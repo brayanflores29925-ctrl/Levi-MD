@@ -241,7 +241,7 @@ export default {
         await enviar(sock, ctx.chatId, {
           title: `✨ ${toSmallCaps("shin-md")} · Categorías`,
           body,
-          footer: `反魂 Shin-MD · github.com/riokuroxi-svg/Shin-MD\nCódigo: Creado por riokuroxi-svg`,
+          footer: `❦ Levi-Bot · Levi-MD\nBasado en Shin-MD por riokuroxi-svg`,
           image,
           buttons,
           contextInfo: getChannelContext({ mentionedJid: [ctx.senderId], channelName: "🤖 Texto generado por AI" }),
@@ -300,7 +300,7 @@ export default {
       await enviar(sock, ctx.chatId, {
         title: `${emoji} ${toSmallCaps("shin-md")} · ${label}`,
         body,
-        footer: `反魂 Shin-MD · Creado por riokuroxi-svg\n${list.length} comandos en ${label}`,
+        footer: `❦ Levi-Bot · Levi-MD · ${list.length} comandos en ${label}\nBasado en Shin-MD por riokuroxi-svg`,
         image,
         buttons,
         contextInfo: getChannelContext({ mentionedJid: [ctx.senderId], channelName: "🔍 Buscando en la web..." }),

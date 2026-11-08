@@ -37,7 +37,7 @@ export default {
       const cuerpo = `🔗 *Enlace acortado:*\n\n> ${short}\n\n_Original:_ ${url}`;
       await enviar(sock, msg.chat, {
         body: cuerpo,
-        footer: "TinyURL · Shin-MD",
+        footer: "TinyURL · Levi-Bot",
         buttons: [ctaCopy("📋 Copiar el corto", short), ctaUrl("🌐 Abrirlo", short)],
         quoted: msg.full || msg,
         fallbackText: cuerpo,

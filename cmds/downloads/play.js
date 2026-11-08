@@ -327,7 +327,7 @@ export default {
 
       const url = info.url || `https://youtu.be/${videoId || info.videoId}`;
       const foundVid = videoId || getVideoId(url) || info.videoId;
-      const title = info.title || "Audio Shin-MD";
+      const title = info.title || "Audio Levi-Bot";
       const channel = info.author?.name || info.author || "YouTube Music";
       const duration = info.timestamp || info.duration || "0:00";
       const views = Number(info.views || 0).toLocaleString("es-MX");
@@ -403,8 +403,8 @@ export default {
           sock,
           jid: ctx.chatId,
           body: caption,
-          footer: "❦ Shin-MD",
-          title: "❦ Shin-MD",
+          footer: "❦ Levi-Bot",
+          title: "❦ Levi-Bot",
           quoted: ctx.full,
           buttons: [
             ...botones.map(b => ({ text: b.buttonText.displayText, id: b.buttonId })),

@@ -95,7 +95,7 @@ export default {
     const channelCtx = getChannelContext({ mentionedJid: [ctx.senderId] });
 
     let targetVideoUrl = query;
-    let videoTitle = "Video Shin-MD";
+    let videoTitle = "Video Levi-Bot";
     let videoThumb = null;
 
     const directId = getYouTubeVideoId(query);
