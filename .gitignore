@@ -46,3 +46,10 @@ audit/
 
 # Datos de esta instalación (no se suben)
 data/creadores.json
+# Installer state (one per installation, never committed)
+.shin-install
+.npm-instalar.log
+
+# Python
+__pycache__/
+*.pyc

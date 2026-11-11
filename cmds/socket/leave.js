@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  * Parte de Shin-MD. Mantener este header es obligatorio por AGPL.
  */
-import { esElOwner } from "#lib/owner-check";
 import { botJid } from "#serialize";
+import { esDuenoSocket } from "#permissions";
 import db from '../../src/services/ginko-db.js';
 import { state } from '#lib/theme';
 export default {
@@ -15,9 +15,7 @@ export default {
   run: async ({ msg, sock, args, usedPrefix, command }) => {
     const botId = botJid(sock);
     const config = db.getSettings(botId) || {};
-    const isOwner = config.owner;
-    const isSocketOwner = esElOwner({ msg, sock, config: { owner: isOwner } });
-    if (!isSocketOwner) return msg.reply(global.mess.socket);
+    if (!esDuenoSocket(sock, msg.sender, config)) return msg.reply(global.mess.socket);
     const groupId = args[0] || msg.chat;
     try {
       await sock.groupLeave(groupId);

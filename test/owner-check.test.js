@@ -9,6 +9,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { esElOwner, soloDigitos, mismoUsuario, esLid, variantes } from "../src/lib/owner-check.js";
 import { nodosInteractivos } from "../src/lib/wa-nodes.js";
+import { normalizarNodos } from "../src/lib/wa-guard.js";
 
 const OWNER = "5215574370309";
 const sock = { user: { id: "5215574370309:12@s.whatsapp.net" } };
@@ -85,8 +86,10 @@ test("sin OWNER_NUMBER el motivo lo dice explícitamente", () => {
 test("el nodo `bot` NO va por defecto (causa «Actualizar WhatsApp»)", () => {
   const previo = process.env.WA_BOT_NODE;
   delete process.env.WA_BOT_NODE;
-  const nodos = nodosInteractivos("5215574370309@s.whatsapp.net");
-  assert.equal(nodos.some((n) => n.tag === "bot"), false, "sin WA_BOT_NODE no debe ir el nodo bot");
+  // El nodo se propone arriba y lo filtra el guardián al salir: se comprueba
+  // el camino completo, que es lo que llega al teléfono.
+  const nodos = normalizarNodos(nodosInteractivos("5215574370309@s.whatsapp.net"));
+  assert.equal(nodos.some((n) => n.tag === "bot"), false, "sin WA_BOT_NODE no debe salir el nodo bot");
   assert.equal(nodos[0].tag, "biz", "el nodo biz sí va siempre");
   if (previo) process.env.WA_BOT_NODE = previo;
 });
@@ -94,7 +97,7 @@ test("el nodo `bot` NO va por defecto (causa «Actualizar WhatsApp»)", () => {
 test("el nodo `bot` sí va con WA_BOT_NODE=1 en privado", () => {
   const previo = process.env.WA_BOT_NODE;
   process.env.WA_BOT_NODE = "1";
-  const nodos = nodosInteractivos("5215574370309@s.whatsapp.net");
+  const nodos = normalizarNodos(nodosInteractivos("5215574370309@s.whatsapp.net"));
   assert.equal(nodos.some((n) => n.tag === "bot"), true);
   if (previo === undefined) delete process.env.WA_BOT_NODE;
   else process.env.WA_BOT_NODE = previo;
