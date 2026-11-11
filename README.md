@@ -46,7 +46,7 @@ abajo.
 | | |
 |---|---|
 | **Comandos** | 216 únicos · 754 nombres con alias · 18 categorías |
-| **Pruebas** | 209/211 pruebas (211 con `better-sqlite3`) |
+| **Pruebas** | 492/576 pruebas (211 con `better-sqlite3`) |
 | **Node** | ≥ 22.5 |
 | **Datos** | SQLite con respaldo JSON automático |
 | **Licencia** | AGPL-3.0-only |
@@ -61,7 +61,7 @@ pkg update -y && pkg install -y curl
 d=$(mktemp -d) && cd "$d"
 curl -fsSL https://raw.githubusercontent.com/brayanflores29925-ctrl/Levi-MD/v3.0.5/install.sh -o install.sh
 curl -fsSL https://raw.githubusercontent.com/brayanflores29925-ctrl/Levi-MD/v3.0.5/SHA256SUMS -o SHA256SUMS
-sha256sum -c SHA256SUMS && bash install.sh --version v3.0.5
+sha256sum -c SHA256SUMS && bash install.sh --version v3.7.9
 ```
 
 La última línea solo ejecuta si la huella coincide: instala una versión
@@ -90,7 +90,7 @@ cd ~/Levi-MD && npm start
 
 | Quiero… | Comando |
 |---|---|
-| actualizar conservando mi sesión | `bash ~/Levi-MD/install.sh --update --version v3.0.5` |
+| actualizar conservando mi sesión | `bash ~/Levi-MD/install.sh --update --version v3.7.9` |
 | arreglar una instalación rota | `bash ~/Levi-MD/install.sh --repair` |
 | saber si todo está bien | `bash ~/Levi-MD/install.sh --verify` |
 | desinstalar y guardar mis datos | `bash ~/Levi-MD/install.sh --uninstall` |
@@ -120,7 +120,7 @@ Todo vive en `.env`. Estas son las claves que de verdad cambian el comportamient
 | `LOG_LEVEL` | `info` | `debug` muestra todo |
 | `PORT` / `PANEL_PASSWORD` | `3000` / — | Panel web. Si lo expones fuera de `127.0.0.1`, la contraseña es obligatoria |
 
-## 📚 Los 213 comandos
+## 📚 Los 218 comandos
 
 Escribe `.menu` dentro de WhatsApp. Los imprescindibles:
 
@@ -694,7 +694,7 @@ bot anterior que no se migraron a `main`.
 ## 🧪 Pruebas
 
 ```bash
-npm test        # 209/211 pruebas (211 con better-sqlite3 instalado)
+npm test        # 492/576 pruebas (211 con better-sqlite3 instalado)
 npm run lint
 ```
 
@@ -739,3 +739,7 @@ no las usa como marca propia.
 base <a href="https://github.com/riokuroxi-svg/Shin-MD">Shin-MD</a> de riokuroxi-svg</sub>
 
 </div>
+
+---
+
+Todo el mapa de la documentación: [docs/INDICE.md](docs/INDICE.md).

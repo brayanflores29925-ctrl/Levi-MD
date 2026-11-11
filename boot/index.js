@@ -5,24 +5,28 @@
  * Parte de Shin-MD. Mantener este header es obligatorio por AGPL.
  */
 import { normalizePhone, parseArgs } from "../src/lib/cli-args.js";
+import { estadoSesion, hayTerminalDetras, leerDeTerminal, planDeVinculacion } from "../src/lib/vinculacion.js";
+import * as ui from "../src/services/consola.js";
+import { panelListo } from "../src/services/consola.js";
+import { instalarAPIs } from "../src/lib/apis.js";
 // ═══════════════════════════════════════════════════════════════════
 //  boot/index.js — Punto de arranque estilo Ginko-MD
-//  Uso: node index.js [--qr | --code | --menu]
+//  Uso: node index.js [--code | --menu]
 // ═══════════════════════════════════════════════════════════════════
 
 import "dotenv/config";
 import chalk from "chalk";
-import cfonts from "cfonts";
 import moment from "moment-timezone";
 import readlineSync from "readline-sync";
 import fs from "fs";
 import path from "path";
-import { DatabaseSync } from "../src/storage/sqlite-compat.js";
 import { createEngine } from "#engine";
 import { connectSocket } from "#socket";
 import { createWatchdog } from "#watchdog";
 import { createWebServer } from "#server";
 import { getDatabase } from "#db";
+import { crearBackendIdentidades } from "../src/storage/identities.js";
+import { conectarBackend } from "../src/lib/lid.js";
 import { createRouter } from "#router";
 import log from "#logger";
 import { fileURLToPath } from "node:url";
@@ -36,6 +40,10 @@ import { createMemoryMonitor } from "../src/services/memory-monitor.js";
 // red suelto no tumbe al bot. Van antes de conectar con WhatsApp.
 installLogFilter();
 installAntiCrash();
+
+// El banner, lo primero: es la cara del bot y así no queda enterrado entre
+// el ruido de los parches y las migraciones.
+printBanner();
 
 // ─── Check legal AGPL (Sección 7) ───────────────────────────────
 // LICENSE y NOTICE son parte de la licencia. Si esta copia no los
@@ -55,27 +63,41 @@ installAntiCrash();
       process.exit(1);
     }
   }
-  let __ver = "dev";
-  try { __ver = JSON.parse(fs.readFileSync(path.join(__root, "package.json"), "utf8")).version || __ver; } catch {}
-  log.ui(chalk.magenta("Levi-Bot v" + __ver + " - Levi-MD"));
-  log.ui(chalk.gray("          base: Shin-MD de riokuroxi-svg (AGPL-3.0)"));
+  // La versión y el autor ya los dice el banner: aquí solo se comprueba
+  // que la copia trae lo que la licencia exige.
 }
 
-// Red de seguridad de vinculación (companion_reg_refresh):
-// el npm install aplica el parche a Baileys (postinstall), pero si el
-// update se hizo solo con "git pull", node_modules queda viejo. El script
-// es idempotente (solo parchea lo que falta y se auto-verifica), así que
-// siempre nos deja en estado conocido. Si falla NO bloqueamos el arranque:
-// las sesiones existentes siguen funcionando; solo la vinculación nueva se
-// ve afectada y el aviso manda a ejecutar "npm install".
+// Red de seguridad del conector: el npm install aplica los parches a
+// Baileys (postinstall), pero si el update se hizo solo con "git pull",
+// node_modules queda viejo. El script es idempotente (solo parchea lo que
+// falta y se auto-verifica), así que siempre nos deja en estado conocido.
+// Si falla NO bloqueamos el arranque: las sesiones existentes siguen
+// funcionando; lo que se pierde son los arreglos de vinculación, y el aviso
+// manda a ejecutar "npm install".
 {
   const __rootDir = path.dirname(fileURLToPath(import.meta.url));
-  const __patchScript = path.resolve(__rootDir, "..", "scripts", "patch-baileys-pairing.cjs");
+  const __patchScript = path.resolve(__rootDir, "..", "scripts", "patch-baileys.cjs");
   const __baileysSocket = path.resolve(__rootDir, "..", "node_modules", "baileys", "lib", "Socket", "socket.js");
   if (fs.existsSync(__patchScript) && fs.existsSync(__baileysSocket)) {
-    const r = spawnSync(process.execPath, [__patchScript], { stdio: "inherit" });
-    if (r.status !== 0) {
-      log.ui(chalk.red("[ ✗ ]  AVISO: no se pudo aplicar el parche de vinculación. Si no puedes vincular un dispositivo nuevo, ejecuta \"npm install\"."));
+    // Antes se soltaban diez líneas «ya aplicado» en cada arranque. Ahora se
+    // resume en una: el detalle solo aparece si algo falla, que es cuando
+    // de verdad hace falta leerlo.
+    const r = spawnSync(process.execPath, [__patchScript], { encoding: "utf8" });
+    const salida = String(r.stdout || "") + String(r.stderr || "");
+    if (r.status === 0) {
+      // El script dice cuántos parches deja puestos; si no lo dice, no se
+      // inventa una cifra.
+      // Se cuentan las líneas numeradas del script (1., 2a., 2b.…), que son
+      // los parches de verdad; «aplicado» también sale en el resumen final.
+      const total = (salida.match(/^\[patch-baileys\] ·\s+\d+[a-z]?\./gm) || []).length;
+      const detalle = /no hay nada que escribir/.test(salida)
+        ? (total ? total + " parches al día" : "parches al día")
+        : "parches revisados y puestos";
+      console.log(ui.estado("ok", "conector: " + detalle));
+    } else {
+      console.log(ui.estado("error", "no se pudieron aplicar los parches del conector"));
+      console.log("  " + chalk.hex("#8B82A3")("si no puedes vincular un dispositivo nuevo, ejecuta \"npm install\"."));
+      if (process.env.SHIN_VERBOSE === "1") console.log(salida);
     }
   }
 }
@@ -83,143 +105,130 @@ installAntiCrash();
 // ─── Helpers ────────────────────────────────────────────────────
 
 
-function hasValidSession(sessionDir) {
-  const authDb = path.join(sessionDir, "auth.db");
-  if (!fs.existsSync(authDb)) return false;
-  try {
-    const db = new DatabaseSync(authDb);
-    const row = db.prepare("SELECT data FROM creds WHERE id = 1").get();
-    db.close();
-    if (!row) return false;
-    const creds = JSON.parse(row.data);
-    return creds?.registered === true;
-  } catch {
-    return false;
-  }
-}
-
 function printBanner() {
-  cfonts.say("LEVI-MD", {
-    font: "block", align: "center",
-    gradient: ["#ff7eb3", "#f97316"],
-    letterSpacing: 1, space: false,
-  });
-  cfonts.say("Bot WhatsApp Multi-Device", {
-    font: "chrome", align: "center",
-    gradient: ["blue", "magenta"], letterSpacing: 2,
-  });
-  log.ui(chalk.cyan("      👑 Levi-Bot · comunidad Levi-MD") + "\n");
-  log.ui(chalk.gray("      núcleo: Shin-MD por riokuroxi-svg · AGPL-3.0") + "\n");
+  let version = "dev";
+  try {
+    version = JSON.parse(fs.readFileSync(path.join(__dirname(), "..", "package.json"), "utf8")).version || version;
+  } catch {}
+  const plataforma = process.platform === "android" ? "termux" : process.platform;
+  console.log(ui.banner({ version, node: process.versions.node, plataforma }));
 }
 
+/** La carpeta de este archivo, para no repetir el cálculo tres veces. */
+function __dirname() {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+
+// El registro de mensajes, en una línea por mensaje. Antes cada texto que
+// entraba soltaba un cuadro de siete filas con colores distintos a los del
+// resto de la consola: en un grupo activo eso es ilegible. Ahora se lee
+// como un registro y comparte la paleta del resto.
 function logIncomingMessage(ctx, usedPrefix) {
-  const t = moment().tz("America/Mexico_City").format("DD/MM/YY HH:mm:ss");
-  const name = ctx.pushName || "Usuario";
-  const g = ctx.isGroup ? (ctx.groupName || ctx.chatId) : "Chat Privado";
-  const isCmd = !!usedPrefix;
-  const boxColor = isCmd ? chalk.hex("#00ff88") : chalk.hex("#38bdf8");
-  log.ui("");
-  log.ui(boxColor("  ╭───────────────────────────────────────"));
-  log.ui(boxColor("  │") + chalk.cyan("  Bot: ") + chalk.greenBright(process.env.BOT_JID || "Levi-MD"));
-  log.ui(boxColor("  │") + chalk.yellow("  Hora: ") + chalk.yellowBright(t));
-  log.ui(boxColor("  │") + chalk.blueBright("  Usuario: ") + chalk.white(name));
-  log.ui(boxColor("  │") + chalk.magenta("  Remitente: ") + chalk.magentaBright(ctx.senderId || ctx.chatId));
-  log.ui(boxColor("  │") + chalk.green("  " + (ctx.isGroup ? "Grupo" : "Privado") + ": ") + chalk.white(g));
-  log.ui(boxColor("  │") + chalk.cyanBright("  " + (isCmd ? "Comando" : "Mensaje") + ": ") + chalk.white(ctx.text.slice(0, 70)));
-  log.ui(boxColor("  ╰───────────────────────────────────────"));
+  const t = moment().tz("America/Mexico_City").format("HH:mm:ss");
+  const donde = ctx.isGroup ? (ctx.groupName || ctx.chatId) : "privado";
+  log.ui(ui.mensaje({
+    hora: t,
+    quien: ctx.pushName || ctx.pushname || "Usuario",
+    donde,
+    texto: String(ctx.text || ""),
+    comando: !!usedPrefix,
+  }));
 }
 
 function logCommand(ctx, cmdName, ms) {
-  const t = moment().tz("America/Mexico_City").format("DD/MM/YY HH:mm:ss");
-  const name = ctx.pushName || ctx.pushname || "Usuario";
-  const g = ctx.isGroup ? (ctx.groupName || ctx.chatId) : "Chat Privado";
-  const boxColor = chalk.hex("#00ff88");
-  log.ui("");
-  log.ui(boxColor("  ╭───────────────────────────────────────"));
-  log.ui(boxColor("  │") + chalk.cyan("  Bot: ") + chalk.greenBright(process.env.BOT_JID || "Levi-MD"));
-  log.ui(boxColor("  │") + chalk.yellow("  Hora: ") + chalk.yellowBright(t));
-  log.ui(boxColor("  │") + chalk.blueBright("  Usuario: ") + chalk.white(name));
-  log.ui(boxColor("  │") + chalk.magenta("  Grupo: ") + chalk.white(g));
-  log.ui(boxColor("  │") + chalk.cyanBright("  Comando: ") + chalk.white(cmdName) + boxColor(` (${ms}ms)`));
-  log.ui(boxColor("  ╰───────────────────────────────────────"));
+  const t = moment().tz("America/Mexico_City").format("HH:mm:ss");
+  const donde = ctx.isGroup ? (ctx.groupName || ctx.chatId) : "privado";
+  log.ui(ui.mensaje({
+    hora: t,
+    quien: ctx.pushName || ctx.pushname || "Usuario",
+    donde,
+    texto: cmdName,
+    comando: true,
+    ms,
+  }));
 }
 
 // ==================================================================
 //  INICIO — TODO SINCRONO hasta el menú (como Ginko-MD)
 // ==================================================================
 
-printBanner();
-
 const args = parseArgs(process.argv.slice(2));
 // SESSION_DIR permite arrancar con otra sesión (ej. para probar la
 // vinculación sin tocar la del dueño: SESSION_DIR=/tmp/prueba).
 const sessionDir = process.env.SESSION_DIR || "./Sessions/Owner";
-const sessionValida = hasValidSession(sessionDir);
-const methodCodeByEnv = (process.env.PAIRING_METHOD || "").trim().toLowerCase() === "code" && process.env.PAIRING_NUMBER;
-const envNumber = (process.env.PAIRING_NUMBER || "").trim();
+const sesion = estadoSesion(sessionDir);
 
-let opcion, phoneNumber = "";
-
-if (args.menu) {
-  // Forzar menú aunque haya sesión
-  opcion = "";
-} else if (args.qr) {
-  opcion = "1";
-} else if (args.code) {
-  opcion = "2";
-  // Prioridad: número por CLI > PAIRING_NUMBER de .env > preguntar.
-  // (Antes: siempre preguntaba con readline-sync y crasheaba en hosts
-  //  sin terminal interactiva — BoxMine, Docker, paneles, etc.)
-  phoneNumber = args.phone || normalizePhone(envNumber);
-  if (!phoneNumber) {
-    if (!process.stdin.isTTY) {
-      log.error(chalk.red("[Shin-MD] --code sin número y sin consola interactiva."));
-      log.error(chalk.yellow("[Shin-MD] Usa: node index.js --code +521XXXXXXXXXX"));
-      log.error(chalk.yellow("[Shin-MD] o define PAIRING_NUMBER en tu archivo .env"));
-      process.exit(1);
-    }
-    phoneNumber = normalizePhone(readlineSync.question(
-      chalk.bold.redBright("\nPor favor, Ingrese el número de WhatsApp.\n") +
-      chalk.bold.yellowBright("Ejemplo: +57301******\n") +
-      chalk.bold.magentaBright("---> ")
-    ));
-  } else {
-    log.ui(chalk.gray(`[ ✿ ] Vinculación por código (número: ${phoneNumber})\n`));
-  }
-} else if (sessionValida) {
-  opcion = "0";
-  log.ui(chalk.gray("[ ✿ ] Sesión existente detectada, cargando...\n"));
-} else if (methodCodeByEnv) {
-  opcion = "2";
-  phoneNumber = normalizePhone(envNumber);
-  log.ui(chalk.gray(`[ ✿ ] Vinculación por código (número desde .env: ${phoneNumber})\n`));
+// ── Vinculación: siempre por código, nunca por QR ───────────────────
+// El QR se retiró porque en un móvil no cabe en la pantalla y, partido,
+// no hay quien lo escanee. `--qr` se sigue aceptando para no romper los
+// guiones que ya existan, pero hace lo mismo que `--code`.
+if (args.qrDeprecado) {
+  log.warn("El QR ya no se usa: la vinculación es siempre por código.");
+  console.log(ui.estado("info", "te pediré el número y WhatsApp te dará un código de 8 caracteres."));
 }
 
-// Menú interactivo si no se decidió antes
-if (!opcion) {
-  const isInteractive = !!process.stdin.isTTY;
-  if (!isInteractive) {
-    log.warn("No hay consola interactiva. Usa --qr, --code o configura .env");
-    opcion = "1";
-  } else {
-    log.ui(chalk.yellow("\n  ╔═══════════════════════════════╗"));
-    log.ui(chalk.yellow("  ║") + chalk.cyan("     📲  CONEXIÓN  📲        ") + chalk.yellow("║"));
-    log.ui(chalk.yellow("  ╚═══════════════════════════════╝\n"));
-    log.ui(chalk.white("     [1]") + chalk.cyan(" QR Code"));
-    log.ui(chalk.white("     [2]") + chalk.cyan(" Pairing Code\n"));
+/**
+ * Pide el número por la terminal. Si la entrada estándar no es una
+ * terminal pero hay una detrás (`/dev/tty`), se lee de ahí: es el caso
+ * de un proceso lanzado con `< /dev/null` desde una sesión normal.
+ *
+ * @returns {string} el número normalizado, o "" si no se pudo preguntar
+ */
+function preguntarNumero() {
+  const porTty = !process.stdin.isTTY && hayTerminalDetras();
+  console.log(ui.panelVinculacion().join("\n"));
+  const respuesta = porTty ? leerDeTerminal() : readlineSync.question(ui.preguntaNumero());
+  if (porTty) console.log(ui.preguntaNumero() + respuesta);
+  return normalizePhone(respuesta);
+}
 
-    opcion = readlineSync.question(chalk.yellow("     ❯ Opción: "));
-    while (!/^[1-2]$/.test(opcion)) {
-      log.ui(chalk.bold.redBright("     ✗ Solo 1 o 2"));
-      opcion = readlineSync.question(chalk.yellow("     ❯ Opción: "));
-    }
+/**
+ * La orden exacta que hay que escribir cuando no hay dónde preguntar.
+ * Se enseña con `521XXXXXXXXXX` en lugar del número porque es lo único
+ * que hay que cambiar, y se recuerda el `.env` para quien prefiera no
+ * teclearlo cada vez.
+ */
+function explicarSinTerminal(motivo) {
+  console.error("");
+  console.error(ui.estado("error", `no hay una terminal donde preguntarte el número (${motivo}).`));
+  console.error("  " + chalk.hex("#8B82A3")("Se arranca sin preguntar de dos maneras:"));
+  console.error("");
+  console.error("    " + chalk.hex("#CFC6E0")("npm start -- --code 521XXXXXXXXXX"));
+  console.error("    " + chalk.hex("#CFC6E0")("PAIRING_NUMBER=521XXXXXXXXXX npm start"));
+  console.error("");
+  console.error("  " + chalk.hex("#8B82A3")("El número es el tuyo, el de la cuenta de WhatsApp que va a llevar el bot."));
+  console.error("");
+}
 
-    if (opcion === "2") {
-      log.ui(chalk.bold.redBright("\nPor favor, Ingrese el número de WhatsApp."));
-      log.ui(chalk.bold.yellowBright("Ejemplo: 521234567890\n"));
-      phoneNumber = normalizePhone(readlineSync.question(chalk.magenta("---> ")));
+const plan = planDeVinculacion({
+  args,
+  env: process.env,
+  sesion,
+  hayTerminal: hayTerminalDetras(),
+});
+
+let phoneNumber = "";
+switch (plan.accion) {
+  case "nada":
+    console.log(ui.estado("ok", "sesión existente: no hace falta vincular nada."));
+    break;
+  case "usar":
+    phoneNumber = plan.numero;
+    console.log(ui.estado("ok", `vinculando con el número ${phoneNumber}.`));
+    break;
+  case "preguntar":
+    phoneNumber = preguntarNumero();
+    if (!phoneNumber) {
+      console.error(ui.estado("error", "ese número no tiene dígitos usables."));
+      process.exit(1);
     }
-  }
+    break;
+  default:
+    // Antes, aquí se seguía de largo y WhatsApp acababa pidiendo un QR
+    // que nadie había pedido y que no se puede escanear en un móvil. No
+    // se arranca a ciegas: se para y se dice qué escribir.
+    explicarSinTerminal(plan.motivo);
+    process.exit(1);
 }
 
 // ==================================================================
@@ -230,6 +239,22 @@ async function main() {
   let db;
   try { db = getDatabase(); }
   catch (err) { log.fatal("DB: " + err.message); process.exit(1); }
+
+  // ── Identidades LID ↔ teléfono ──────────────────────────────────
+  //  La red solo resuelve teléfono → LID; el sentido contrario vive en
+  //  esta tabla. Se conecta ANTES de recibir el primer mensaje: si no,
+  //  la primera pareja que llegue se perdería y el usuario tendría dos
+  //  cuentas (una por cada forma de su JID).
+  try {
+    const backend = crearBackendIdentidades(db.db);
+    conectarBackend(backend);
+    const conocidas = backend.contar();
+    if (conocidas > 0) log.gray("Identidades: " + conocidas + " parejas LID ↔ teléfono recordadas.");
+  } catch (err) {
+    // Sin esta capa el bot sigue funcionando: peor (cuentas partidas),
+    // pero funcionando. Se avisa una vez y se sigue.
+    log.warn("Identidades: no se pudo activar la persistencia: " + (err.message || err));
+  }
 
   // ── B2.1: perfil del número (nuevo vs aclimatado) ──────────────
   // Número nuevo:    delay base 1500ms + warm-up de 7 días (20→500 msg/día)
@@ -270,6 +295,19 @@ async function main() {
     const v = parseInt(process.env[nombre] || "", 10);
     return Number.isFinite(v) && v > 0 ? v : null;
   };
+  // B2.2: cargar estado persistido de warm-up y ritmo para no reiniciar
+  // cuotas ni olvidar chats calientes al reiniciar el proceso.
+  let savedWarmup = {};
+  try {
+    const raw = db.settings.get("warmup_state");
+    if (raw) savedWarmup = JSON.parse(raw);
+  } catch {}
+  let savedRitmo = {};
+  try {
+    const raw = db.settings.get("ritmo_state");
+    if (raw) savedRitmo = JSON.parse(raw);
+  } catch {}
+
   const warmupOff = /^(0|off|no|false)$/i.test((process.env.WARMUP || "").trim()) || /^(0|off|no|false)$/i.test((process.env.WARMUP_LIMIT || "").trim());
   if (warmupOff) {
     throttlerOpts.warmUpStartMsgsPerDay = Number.MAX_SAFE_INTEGER;
@@ -284,23 +322,55 @@ async function main() {
     // Coherencia: el tope final nunca puede quedar por debajo del inicial
     // (si no, getDailyLimit() decrecería con los días: absurdo).
     const ini = throttlerOpts.warmUpStartMsgsPerDay ?? 20;
-    const max = throttlerOpts.warmUpMaxMsgsPerDay ?? 500;
+    const max = throttlerOpts.warmUpMaxMsgsPerDay ?? 2000;
     if (max < ini) {
       throttlerOpts.warmUpMaxMsgsPerDay = ini;
       log.warn("WARMUP_MAX_MSGS era menor que WARMUP_START_MSGS; se igualó a " + ini);
     }
   }
+  if (savedWarmup && typeof savedWarmup === "object") {
+    if (savedWarmup.warmUpLastReset === today) {
+      throttlerOpts.warmUpMsgsToday = Number(savedWarmup.warmUpMsgsToday) || 0;
+    }
+    throttlerOpts.warmUpLastReset = savedWarmup.warmUpLastReset || today;
+    throttlerOpts.totalSent = Number(savedWarmup.totalSent) || 0;
+    if (savedWarmup.perfil) throttlerOpts.perfil = savedWarmup.perfil;
+  }
 
-  const engine = createEngine({ throttler: throttlerOpts });
+  const engine = createEngine({ throttler: throttlerOpts, ritmoEstado: savedRitmo });
   const warmupStats = engine.getThrottler().getStats();
   log.info("Perfil del número: " + numberProfile + " (antigüedad " + ageDays + "d) — delay base " + throttlerOpts.baseDelayMs + "ms, warm-up " + throttlerOpts.warmUpDays + " días, tope de hoy " + (warmupOff ? "SIN TOPE (WARMUP=off)" : warmupStats.dailyLimit + " mensajes"));
   const watchdog = createWatchdog(engine, { intervalMs: 10000, stuckThresholdMs: 300000 });
   watchdog.start();
-  createWebServer(engine, { port: parseInt(process.env.PORT || "3000", 10) });
+  const webServer = createWebServer(engine, { port: parseInt(process.env.PORT || "3000", 10) });
 
   // Mantenimiento 24/7: temporales viejos fuera y aviso si la RAM se dispara.
-  createTempCleaner().start();
-  createMemoryMonitor().start();
+  const tempCleaner = createTempCleaner();
+  tempCleaner.start();
+  const memoryMonitor = createMemoryMonitor();
+  memoryMonitor.start();
+
+  function persistAntibanState() {
+    try {
+      const thState = engine.getThrottler()?.state;
+      if (thState) db.settings.set("warmup_state", JSON.stringify(thState));
+      const rtState = engine.getRitmo()?.estado;
+      if (rtState) db.settings.set("ritmo_state", JSON.stringify(rtState));
+    } catch (err) {
+      log.warn("No se pudo guardar el estado antiban: " + (err?.message || err));
+    }
+  }
+  const persistTimer = setInterval(persistAntibanState, 60000);
+  if (typeof persistTimer.unref === "function") persistTimer.unref();
+
+  engine.onShutdown(async () => {
+    clearInterval(persistTimer);
+    persistAntibanState();
+    watchdog.stop();
+    tempCleaner.stop();
+    memoryMonitor.stop();
+    await webServer.close();
+  });
 
   // (Antes: si OWNER_NUMBER no existía, `undefined + "@s.whatsapp.net"`
   //  dejaba owner_jid = "undefined@s.whatsapp.net" — owner fantasma.)
@@ -326,25 +396,18 @@ async function main() {
   // 21 comandos portados (self, kick, setprefix, setowner...) leen
   // global.owner y global.mess. Sin definirlos, el primer uso lanza
   // TypeError en runtime (global.owner.map sobre undefined).
-  // Varios dueños: OWNERS=504...,521... (coma). El principal sigue siendo
-// OWNER_NUMBER; los demás se suman a globalThis.owner y al candado de
-// #lib/owner-check. Así el bot puede tener dueño y co-dueño a la vez.
-const ownersExtra = String(process.env.OWNERS || "")
-  .split(",")
-  .map((n) => n.replace(/\D/g, ""))
-  .filter(Boolean);
-globalThis.owner = Array.from(new Set([ownerNum, ownerAlias, ...ownersExtra].filter(Boolean)));
+  globalThis.owner = ownerNum ? Array.from(new Set([ownerNum, ownerAlias].filter(Boolean))) : [];
   globalThis.links = {
     channel: process.env.CHANNEL_LINK || "https://whatsapp.com/channel/0029VbDVFpSGJP89hfZUe522",
     channelCode: process.env.CHANNEL_CODE || "0029VbDVFpSGJP89hfZUe522",
-    channelName: process.env.CHANNEL_NAME || "Levi-MD · Canal oficial",
+    channelName: process.env.CHANNEL_NAME || "Shin-MD Official Channel",
     instagram: process.env.INSTAGRAM_LINK || "https://www.instagram.com/__ikg.05",
     github: "https://github.com/riokuroxi-svg/Shin-MD",
     support: process.env.SUPPORT_LINK || "",
   };
   globalThis.multiplier = 2;
-  globalThis.botname = "Levi-MD";
-  globalThis.conns = new Map();
+  globalThis.botname = "Shin-MD";
+  globalThis.conns = [];
   globalThis.mess = {
     default: "⚠️ Comando no disponible.",
     socket: "🚫 *Solo el dueño* puede usar este comando.",
@@ -366,21 +429,34 @@ globalThis.owner = Array.from(new Set([ownerNum, ownerAlias, ...ownersExtra].fil
     // hasta configurarlo. (Bot de una sola cuenta: sin cambios — tus
     // propios mensajes ya pasan por ctx.fromMe.)
     if (!engine.getOwnerJid()) {
-      log.warn("┌─────────────────────────────────────────────────────────");
-      log.warn("│ ⚠ OWNER_NUMBER SIN CONFIGURAR — nadie será dueño del bot");
-      log.warn("│   1) cp .env.example .env");
-      log.warn("│   2) escribe tu número en OWNER_NUMBER (solo dígitos)");
-      log.warn("│   3) reinicia el bot. Hasta entonces: todos sin permisos.");
-      log.warn("└─────────────────────────────────────────────────────────");
+      console.log("");
+      console.log(ui.caja({
+        titulo: "falta el dueño",
+        color: ui.COLOR.ambar,
+        lineas: [
+          "OWNER_NUMBER sin configurar: nadie será dueño.",
+          "",
+          "1) cp .env.example .env",
+          "2) escribe tu número en OWNER_NUMBER (solo dígitos)",
+          "3) reinicia el bot",
+          "",
+          ui.COLOR.tenue("hasta entonces, todos sin permisos."),
+        ],
+      }).join("\n"));
+      console.log("");
     }
   });
 
+  // Las APIs de respaldo se configuran ANTES de cargar los comandos: si no,
+  // el primer .instagram se encuentra `global.APIs` sin definir y revienta.
+  instalarAPIs();
   const router = createRouter(engine, { onCommand: logCommand, onMessage: logIncomingMessage });
   await router.init();
 
   const sockModule = connectSocket(engine, {
     sessionDir,
-    pairingMethod: opcion === "2" ? "code" : "qr",
+    // Siempre por código: el QR se retiró de la consola.
+    pairingMethod: "code",
     pairingNumber: phoneNumber,
     onMessage: (s, m) => router.handle(s, m),
     onReady: async s => {
@@ -392,6 +468,18 @@ globalThis.owner = Array.from(new Set([ownerNum, ownerAlias, ...ownersExtra].fil
         log.error("Events registration: " + (e.message || e));
       }
       log.success("Bot listo ✓");
+      console.log("");
+      console.log(panelListo({
+        version: (() => {
+          try { return JSON.parse(fs.readFileSync(path.join(__dirname(), "..", "package.json"), "utf8")).version; }
+          catch { return "?"; }
+        })(),
+        nombre: s?.user?.name || s?.user?.id || "?",
+        comandos: typeof router.countUnique === "function" ? router.countUnique() : 0,
+        prefijo: router.PREFIX || ".",
+        web: `http://127.0.0.1:${process.env.PORT || 3000}`,
+      }));
+      console.log("  " + ui.COLOR.tenue("el registro de lo que pasa va aquí abajo.") + "\n");
     },
     watchdog,
   });

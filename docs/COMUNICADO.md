@@ -17,7 +17,7 @@ pkg update -y && pkg install -y curl
 d=$(mktemp -d) && cd "$d"
 curl -fsSL https://raw.githubusercontent.com/brayanflores29925-ctrl/Levi-MD/v3.0.5/install.sh -o install.sh
 curl -fsSL https://raw.githubusercontent.com/brayanflores29925-ctrl/Levi-MD/v3.0.5/SHA256SUMS -o SHA256SUMS
-sha256sum -c SHA256SUMS && bash install.sh --version v3.0.5
+sha256sum -c SHA256SUMS && bash install.sh --version v3.7.9
 ```
 
 La penúltima línea comprueba la huella del archivo antes de ejecutarlo: si no
@@ -26,7 +26,7 @@ coincide, no instala nada.
 **Actualizar ya no da miedo.**
 
 ```bash
-bash ~/Levi-MD/install.sh --update --version v3.0.5
+bash ~/Levi-MD/install.sh --update --version v3.7.9
 ```
 
 Guarda un respaldo de la base antes de moverse, no toca tu `.env`, tu sesión de

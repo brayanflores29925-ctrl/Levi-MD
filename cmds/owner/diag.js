@@ -26,7 +26,7 @@ function ocultar(num = "") {
 }
 
 export default {
-    command: ["diag", "quien", "quiensoy", "diagnostico"],
+    command: ["diag", "quien", "quiensoy"],
     category: "owner",
     description: "Explica cómo ve WhatsApp al remitente y si el bot lo reconoce como dueño.",
     usage: ".diag  ·  .diag botones  ·  .diag motor",
