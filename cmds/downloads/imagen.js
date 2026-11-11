@@ -16,6 +16,13 @@ import { withLimit } from '#lib/limits';
 import { sendAlbum } from '#lib/album';
 import { state } from '#lib/theme';
 
+/**
+ * ¿Las fotos van en álbum? Solo si se pide en el .env.
+ * El álbum es lo último de WhatsApp y los clientes viejos lo pintan como
+ * «mensaje no compatible», sin que el envío dé ningún error aquí.
+ */
+export const usaAlbum = (env = process.env) => env.SHIN_ALBUM === "1";
+
 export default {
   command: ['imagen', 'img', 'image'],
   category: 'downloads',
@@ -28,7 +35,7 @@ export default {
     }
     const bannedWords = PALABRAS_NSFW;
     const chat = db.getChat(msg.chat);
-    const nsfwEnabled = chat.nsfw === 1;
+    const nsfwEnabled = chat?.nsfw === 1;
     // Límites de palabra + normalización (ver src/lib/filtro-texto.js):
     // antes "cumpleaños" se bloqueaba por la palabra "cum".
     if (!nsfwEnabled && contienePalabraProhibida(text, bannedWords)) {
@@ -40,16 +47,21 @@ export default {
         return sock.reply(msg.chat, `《✧》 No se encontraron imágenes para "${text}".`, msg);
       }
       const validResults = await filterValidImages(results.slice(0, 15));
-      if (validResults.length < 2) {
-        return sock.reply(msg.chat, `《✧》 Se requieren al menos 2 imágenes válidas para mostrar un álbum.`, msg);
+      if (validResults.length < 1) {
+        return sock.reply(msg.chat, `《✧》 Las imágenes encontradas no se pudieron abrir. Prueba con otro término.`, msg);
       }
       const medias = validResults.slice(0, 10).map(r => ({ image: { url: r.url }, caption: `ㅤ۟∩　ׅ　★　ׅ　🅖oogle 🅘mage 🅢earch　ׄᰙ　\n\n${r.title ? `𖣣ֶㅤ֯⌗ ☆  ⬭ *Título* › ${r.title}\n` : ''}` + `${r.domain ? `𖣣ֶㅤ֯⌗ ☆  ⬭ *Fuente* › ${r.domain}\n` : ''}` + `${r.resolution ? `𖣣ֶㅤ֯⌗ ☆  ⬭ *Resolución* › ${r.resolution}\n` : ''}` + `𖣣ֶㅤ֯⌗ ☆  ⬭ *Búsqueda* › ${text}` }));
-      const album = await sendAlbum(sock, msg.chat, medias, { quoted: msg.full || msg });
-      if (!album.sent) {
-        // Sin álbum, pero con imágenes: mejor sueltas que nada.
-        for (const medio of medias.slice(0, 5)) {
-          await sock.sendMessage(msg.chat, { image: medio.image, caption: medio.caption }, { quoted: msg.full || msg });
-        }
+      // El álbum se manda SOLO si se pide (SHIN_ALBUM=1). Es la función
+      // más nueva de WhatsApp y los clientes sin soporte la pintan como
+      // «Recibiste un mensaje que no es compatible con tu versión», sin
+      // dar ningún error aquí: el envío figure como bueno. Sueltas se
+      // ven siempre, así que ese es el camino por defecto.
+      if (usaAlbum() && medias.length >= 2) {
+        const album = await sendAlbum(sock, msg.chat, medias, { quoted: msg.full || msg });
+        if (album.sent) return;
+      }
+      for (const medio of medias.slice(0, 5)) {
+        await sock.sendMessage(msg.chat, { image: medio.image, caption: medio.caption }, { quoted: msg.full || msg });
       }
     } catch (e) {
       await msg.reply(state('error', { detail: e.message }));
@@ -95,7 +107,7 @@ async function bingImageSearch(query) {
   const re = /class="iusc"[^>]*m="([^"]{20,})"/g;
   let m;
   while ((m = re.exec(data))) {
-    let raw = m[1].replace(/&quot;/g, '"').replace(/\\&quot;/g, '"').replace(/\\"/g, '"').replace(/&amp;/g, '&');
+    const raw = m[1].replace(/&quot;/g, '"').replace(/\\&quot;/g, '"').replace(/\\"/g, '"').replace(/&amp;/g, '&');
     let j;
     try { j = JSON.parse(raw); } catch { continue; }
     if (!j.murl) continue;
@@ -122,22 +134,24 @@ async function getImageSearchResults(query) {
   } catch {
     // cae a las APIs de respaldo
   }
-  // 2) APIs de respaldo (delirius, lempi/Ginko)
+  // 2) APIs de respaldo (delirius, Ginko)
   const apis = [
-    { endpoint: `${global.APIs.delirius.url}/search/gimage?query=${encodeURIComponent(query)}`, extractor: (res) => {
+    { endpoint: global.APIs?.delirius?.url ? `${global.APIs.delirius.url}/search/gimage?query=${encodeURIComponent(query)}` : null, extractor: (res) => {
         if (!res.status || !Array.isArray(res.data)) return [];
         return res.data.map(item => ({ url: item.url, title: item.origin?.title || null, domain: item.origin?.website?.domain || null, resolution: item.width && item.height ? `${item.width}x${item.height}` : null }));
       }
     },
-    { endpoint: `${global.APIs.Ginko.url}/search/image?q=${encodeURIComponent(query)}&api_key=${global.APIs.Ginko.key}`, extractor: (res) => {
+    { endpoint: global.APIs?.Ginko?.url ? `${global.APIs.Ginko.url}/search/image?q=${encodeURIComponent(query)}&api_key=${global.APIs.Ginko.key || ''}` : null, extractor: (res) => {
         if (!res.status || !Array.isArray(res.result)) return [];
         return res.result.map(item => ({ url: item.image, title: item.title || null, domain: item.url ? new URL(item.url).hostname : null, resolution: null }));
       }
     }
-  ];
+  ]
+    .filter(({ endpoint }) => typeof endpoint === "string" && endpoint.length > 0 && !endpoint.includes("undefined"));
+  if (!apis.length) return [];
   for (const { endpoint, extractor } of apis) {
     try {
-      const { data } = await axios.get(endpoint);
+      const { data } = await axios.get(endpoint, { timeout: 15000 });
       const results = extractor(data);
       if (results && results.length > 0) return results;
     } catch {

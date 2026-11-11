@@ -1,6 +1,6 @@
 {
   "name": "levi-md",
-  "version": "3.0.5",
+  "version": "3.7.9",
   "license": "AGPL-3.0-only",
   "author": "riokuroxi-svg (github.com/riokuroxi-svg/Shin-MD)",
   "description": "Levi-MD — bot de WhatsApp sobre la base de Shin-MD (AGPL-3.0, riokuroxi-svg).",
@@ -10,8 +10,12 @@
     "start": "node index.js",
     "start:code": "node index.js --code",
     "start:qr": "node index.js --qr",
+    "start:consola": "node scripts/consola.mjs",
+    "vigia": "node scripts/vigia.mjs",
+    "panel": "node scripts/panel.mjs",
+    "panel:vivir": "node scripts/panel.mjs --vivir",
+    "start:keep": "node scripts/vigia.mjs",
     "test": "node scripts/run-tests.mjs",
-    "postinstall": "node scripts/patch-baileys-pairing.cjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{js,mjs,cjs,json,yml,yaml}\"",
@@ -20,7 +24,14 @@
     "test:pairing": "node scripts/verificar-pairing.js",
     "docs:web": "node scripts/actualizar-web.mjs",
     "docs:pastel": "python3 tools/build_pastel.py",
-    "contador": "node tools/contador.js"
+    "contador": "node tools/contador.js",
+    "mapa": "node tools/mapa.mjs",
+    "postinstall": "node scripts/patch-baileys.cjs",
+    "firma": "node scripts/firma-instalador.mjs",
+    "publicar": "node scripts/publicar.mjs",
+    "release": "node scripts/publicar.mjs",
+    "firma:check": "node scripts/firma-instalador.mjs --check",
+    "test:cobertura": "node --test --experimental-test-coverage"
   },
   "imports": {
     "#engine": "./src/core/engine.js",
@@ -59,8 +70,7 @@
     "aptoide-scraper": "^1.0.1",
     "awesome-phonenumber": "^7.8.0",
     "axios": "^1.20.0",
-    "baileys": "npm:@whiskeysockets/baileys@6.7.24",
-    "cfonts": "^3.3.1",
+    "baileys": "npm:@whiskeysockets/baileys@7.0.0-rc14",
     "chalk": "4.1.2",
     "cheerio": "^1.2.0",
     "dotenv": "16.4.7",
@@ -78,7 +88,6 @@
     "node-webpmux": "^3.2.1",
     "pino": "8.21.0",
     "qrcode": "1.5.4",
-    "qrcode-terminal": "0.12.0",
     "readline-sync": "^1.4.10",
     "sharp": "^0.35.4",
     "syntax-error": "^1.4.0",
@@ -86,13 +95,14 @@
   },
   "overrides": {
     "libsignal": "npm:libsignal@6.0.0",
-    "qs": "^6.16.0"
+    "qs": "^6.16.0",
+    "zod": "4.6.6"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/riokuroxi-svg/Shin-MD.git"
+    "url": "git+https://github.com/brayanflores29925-ctrl/Levi-MD.git"
   },
-  "homepage": "https://github.com/riokuroxi-svg/Shin-MD",
+  "homepage": "https://github.com/brayanflores29925-ctrl/Levi-MD",
   "devDependencies": {
     "@types/node": "^26.6.4",
     "eslint": "^9.39.5",

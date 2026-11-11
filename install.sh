@@ -21,25 +21,53 @@
 #    bash install.sh --verify        comprobar la instalación actual
 #    bash install.sh --uninstall     desinstalar conservando datos
 #    bash install.sh --uninstall --purge   desinstalar y borrar todo
+#    bash install.sh --run           arrancar el bot, sin comprobar nada
+#    bash install.sh --auto          instalar, arreglar o actualizar, y arrancar
+#    bash install.sh --doctor        foto del estado, para pegar si pides ayuda
+#    bash install.sh --service       dejarlo como servicio de systemd (VPS)
 #
 #  Opciones:
 #    --dir RUTA     instalar en otra carpeta (por defecto ~/Shin-MD)
 #    --version TAG  instalar (o pasar a) una versión concreta
 #    --branch RAMA  seguir esa rama en vez de main
+#    --go           arrancar el bot al terminar (lo que hace `shin`)
+#    --no-arrancar  aunque sea --auto, no arrancar el bot
+#    --code          pasárselo al bot: pedir código de vinculación
+#    --qr           igual que --code (se acepta por compatibilidad)
+#    --print        con --service: enseñar la unidad, sin escribir nada
+#    --user/--system  ámbito del servicio (por defecto, el que se pueda)
 #    --yes          no preguntar
 #    --shallow      clon rápido sin historial (no permite volver atrás)
 #    --no-boost     no intentar el wakelock en Termux
+#
+#  Repetir el comando es seguro: si ya está instalado y al día, no copia,
+#  no duplica y no vuelve a descargar. Y deja un comando `shin` en el PATH.
 # ═══════════════════════════════════════════════════════════════════
 set -Eeuo pipefail
 
+# ═══════════════════════════════════════════════════════════════════
+#  ÍNDICE DE SECCIONES
+#    1. Configuración global y helpers de consola
+#    2. Protección de rutas (resolver_real .. destino_instalable)
+#    3. Limpieza ante señales y utilidades base
+#    4. Detección de plataforma, paquetes del sistema y descargas
+#    5. Entorno: git, Node.js, npm, PATH y extras de Termux
+#    6. Base de datos y respaldos consistentes (WAL / VACUUM INTO)
+#    7. Clonado, dependencias, parches y verificación
+#    8. Lanzador `shin`, detección de proceso y resumen final
+#    9. Red git y acciones CLI (--install/--auto/--update/--repair/…)
+#   10. Parseo de argumentos y despacho principal
+# ═══════════════════════════════════════════════════════════════════
+
 readonly REPO_URL="${SHIN_REPO_URL:-https://github.com/brayanflores29925-ctrl/Levi-MD.git}"
 RAMA="${SHIN_BRANCH:-main}"
+readonly REPO_URL_INFO="${SHIN_REPO_URL_INFO:-${REPO_URL%.git}}"
 readonly NODE_MINIMO="22.5.0"
 readonly NPM_MINIMO="10.0.0"
 readonly NOMBRE="${SHIN_NOMBRE:-Levi-MD}"
 # El "name" de package.json, que es lo que distingue una instalación de
 # cualquier otro proyecto. Se deduce del nombre visible (Shin-MD → shin-md,
-# Levi-MD → levi-md) para que un fork no tenga que tocar el instalador por
+# Mi-Bot → mi-bot) para que un fork no tenga que tocar el instalador por
 # dentro; si tu paquete se llama distinto, se dice y ya:
 #   SHIN_PKG=mi-paquete bash install.sh
 PAQUETE="${SHIN_PKG:-$(printf '%s' "$NOMBRE" | tr '[:upper:]' '[:lower:]' | sed -e 's/[^a-z0-9._ -]//g' -e 's/ /-/g' -e 's/-\{2,\}/-/g' -e 's/^-//' -e 's/-$//')}"
@@ -61,6 +89,11 @@ PEDIR_CONFIRMACION=1
 SUPERFICIAL=0
 PURGAR=0
 BOOST=1
+GO=0                 # --go: arrancar el bot al terminar
+SIN_ARRANQUE=0       # --no-arrancar: aunque --auto pida arrancar
+ARRANQUE_ARGS=()     # --code, tal cual se le pasa al bot
+SERVICIO_PRINT=0     # --print: enseñar la unidad y no escribir nada
+SERVICIO_AMBITO=""   # system | user (por defecto, lo que se pueda)
 
 # ─────────────────────────── salida ───────────────────────────
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -252,9 +285,14 @@ destino_instalable() {
 # ───────────────────── limpieza ante interrupción ─────────────────────
 INSTALANDO=0
 al_salir() {
-  local codigo=$?
-  if [ -n "${DESTINO:-}" ] && [ -f "$DESTINO/.shin-install.tmp" ] && [ ! -L "$DESTINO/.shin-install.tmp" ]; then
-    rm -f -- "$DESTINO/.shin-install.tmp" || true
+  local codigo=$? ruta
+  if [ -n "${DESTINO:-}" ]; then
+    for ruta in "$DESTINO/.shin-install.tmp" "$DESTINO/.npm-instalar.log" \
+                "$DESTINO/.node-tmp" "${DESTINO}.parcial-$$"; do
+      if [ -e "$ruta" ] && [ ! -L "$ruta" ]; then
+        rm -rf -- "$ruta" || true
+      fi
+    done
   fi
   if [ "$codigo" -ne 0 ] && [ "$INSTALANDO" -eq 1 ]; then
     printf '\n%s  La instalación no terminó. Nada quedó marcado como instalado:%s\n' "$C_GRIS" "$C_RESET" >&2
@@ -302,6 +340,18 @@ leer_version_paquete() {
 exigir_destino_conocido() {
   [ "$DESTINO_EXPLICITO" -eq 1 ] && return 0
   [ "$ORIGEN_DEDUCIDO" -eq 1 ] && return 0
+  # Volver a pegar el mismo comando en Termux es lo más normal del mundo: el
+  # archivo se descarga en ~ y se ejecuta desde ahí, así que el instalador no
+  # está dentro de la instalación y antes se plantaba con "No sé sobre qué
+  # instalación actuar". Si en la ruta por defecto hay una instalación con
+  # nuestro nombre, es ESA y no otra: se acepta solo si se puede demostrar
+  # (package.json con el nombre del paquete, .git y sin enlaces), que es lo
+  # mismo que exige el resto del script antes de tocar nada.
+  if [ -d "$DESTINO" ] && [ ! -L "$DESTINO" ] && es_propia "$DESTINO" && [ -d "$DESTINO/.git" ]; then
+    ORIGEN_DEDUCIDO=1
+    dato "instalación reconocida en $DESTINO"
+    return 0
+  fi
   morir "No sé sobre qué instalación actuar.
   Ejecuta este script desde la carpeta de la instalación, o indica la ruta:
     bash install.sh --dir RUTA --$1"
@@ -311,7 +361,7 @@ exigir_destino_conocido() {
 #   · lleva la marca .shin-install, que escribió este mismo instalador, o
 #   · su package.json se llama como el paquete ($PAQUETE).
 # Lo segundo es lo que salva a un fork hecho antes del instalador (un clon a
-# mano de Levi-MD, por ejemplo): se reconoce por el nombre, sin marca.
+# mano de Mi-Bot, por ejemplo): se reconoce por el nombre, sin marca.
 es_propia() {
   local dir="${1:-}"
   [ -f "$dir/package.json" ] || return 1
@@ -333,6 +383,455 @@ exigir_proyecto() {
     morir "$DESTINO es un enlace simbólico; esa es justo la forma de borrar otra cosa sin querer."
   fi
   return 0
+}
+
+# ═══════════════════════════════════════════════════════════════════
+#  ENTORNO — lo que tiene que existir antes de instalar nada
+#
+#  La versión 3.5 daba por hecho que ya tenías Node 22.5 y git. En un
+#  teléfono con Termux eso se resuelve con `pkg`, pero en un VPS recién
+#  creado, en un contenedor de Docker o en un macOS sin Homebrew, no:
+#  el instalador se paraba y mandaba a leer la documentación.
+#
+#  Ahora mira qué falta y lo resuelve, en este orden de preferencia:
+#    1. Lo que ya está — no se toca nada.
+#    2. El gestor de paquetes del sistema (pkg, apt, dnf, apk, pacman,
+#       brew), pidiendo permiso antes de usar sudo.
+#    3. Sin root y sin paquetes: Node oficial (nodejs.org) descomprimido
+#       en ~/.local/opt, con su huella comprobada. Sirve en cualquier
+#       Linux con glibc y en macOS, sin tocar el sistema.
+#    4. Si nada de eso es posible, se dice qué falta y qué escribir.
+#
+#  Y queda guardado en `.shin-install` de dónde salió cada cosa, para
+#  que `--doctor` pueda contarlo después.
+# ═══════════════════════════════════════════════════════════════════
+
+detectar_plataforma() {
+  SO="$(uname -s 2>/dev/null || echo desconocido)"
+  ARQ_SIS="$(arquitectura)"
+  GESTOR=""
+  SUDO=""
+  PLATAFORMA="otro"
+  NODE_DE_PAQUETE=0
+
+  if es_termux; then
+    PLATAFORMA="termux"
+    hay pkg && GESTOR="pkg"
+  elif [ "$SO" = "Darwin" ]; then
+    PLATAFORMA="macos"
+    hay brew && GESTOR="brew"
+  elif hay apk; then
+    PLATAFORMA="alpine"
+    GESTOR="apk"
+  elif hay apt-get; then
+    PLATAFORMA="debian"
+    GESTOR="apt"
+  elif hay dnf; then
+    PLATAFORMA="fedora"
+    GESTOR="dnf"
+  elif hay yum; then
+    PLATAFORMA="rhel"
+    GESTOR="yum"
+  elif hay pacman; then
+    PLATAFORMA="arch"
+    GESTOR="pacman"
+  fi
+
+  if [ "$(id -u 2>/dev/null || echo 1)" != "0" ] && hay sudo; then
+    # `sudo -n` cuando la contraseña no se puede pedir: falla en el acto en
+    # vez de dejar la instalación colgada esperando algo que nadie va a
+    # escribir (esto es lo que pasa dentro de un contenedor o de un cron).
+    if sudo -n true 2>/dev/null; then
+      SUDO="sudo -n"
+    elif [ "$PEDIR_CONFIRMACION" -eq 1 ]; then
+      SUDO="sudo"
+    fi
+  fi
+  return 0
+}
+
+# ¿Se permite tocar el sistema? Con --yes se asume que sí (el usuario pidió
+# automatización), pero solo se usa `sudo -n`: nunca se queda esperando una
+# contraseña que no puede leer.
+# Regla: sin terminal no se toca el sistema. Un instalador que corre por una
+# tubería no puede decidir por ti si instala paquetes con root; lo que sí
+# puede hacer sin preguntar es poner Node en tu carpeta personal, que no toca
+# nada del sistema (ver instalar_node_oficial). Quien quiera que sí, lo dice:
+#   SHIN_PERMITIR_PAQUETAS=1 curl … | sh
+puedo_instalar_sistema() {
+  [ "${SHIN_NO_INSTALAR:-0}" = "1" ] && return 1
+  [ -n "$GESTOR" ] || return 1
+  if [ "${SHIN_PERMITIR_PAQUETAS:-0}" = "1" ]; then
+    [ "$(id -u 2>/dev/null || echo 1)" = "0" ] || [ -n "$SUDO" ]
+    return $?
+  fi
+  # Con terminal se puede preguntar, y `pedir_permiso` lo hará.
+  [ -t 0 ] || return 1
+  [ "$(id -u 2>/dev/null || echo 1)" = "0" ] || [ -n "$SUDO" ]
+}
+
+pedir_permiso() {  # $1 = qué, $2... = comando sugerido
+  local que="$1"; shift
+  [ "$PEDIR_CONFIRMACION" -eq 1 ] || return 0
+  if [ ! -t 0 ]; then return 1; fi
+  printf '  %s?%s Falta %s. ¿Lo instalo ahora? [S/n] ' "$C_AMAR" "$C_RESET" "$que" >&2
+  local respuesta=""
+  read -r respuesta || return 1
+  case "$respuesta" in
+    ""|s|S|si|sí|SI|Sí|y|Y|yes) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+instalar_paquete_sistema() {  # $@ = nombres de paquete
+  [ -n "$GESTOR" ] || return 1
+  case "$GESTOR" in
+    pkg)     pkg install -y "$@" >/dev/null 2>&1 ;;
+    apt)     $SUDO apt-get update -qq >/dev/null 2>&1 && $SUDO apt-get install -y "$@" >/dev/null 2>&1 ;;
+    dnf|yum) $SUDO "$GESTOR" install -y "$@" >/dev/null 2>&1 ;;
+    apk)     $SUDO apk add --no-cache "$@" >/dev/null 2>&1 ;;
+    pacman)  $SUDO pacman -S --noconfirm --needed "$@" >/dev/null 2>&1 ;;
+    brew)    brew install "$@" >/dev/null 2>&1 ;;
+    *)       return 1 ;;
+  esac
+}
+
+# ─────────────── descargas con red floja ───────────────
+# Mismo criterio que en el arranque: reintentar lo que puede mejorar solo.
+descargar_url() {  # $1 url, $2 destino
+  local intento=1 estado codigo
+  local intentos="${SHIN_INTENTOS:-3}"
+  while [ "$intento" -le "$intentos" ]; do
+    estado=0
+    codigo="000"
+    if hay curl; then
+      codigo="$(curl -sSL --connect-timeout 20 --max-time 900 --retry 0 \
+                  -o "$2" -w '%{http_code}' "$1" 2>/dev/null)" || estado=$?
+    elif hay wget; then
+      wget -q -T 20 -O "$2" "$1" >/dev/null 2>&1 || estado=$?
+      [ "$estado" -eq 0 ] && codigo="200"
+    else
+      return 3
+    fi
+    [ -n "$codigo" ] || codigo="000"
+    if [ "$estado" -eq 0 ]; then
+      case "$codigo" in
+        2*|000) return 0 ;;
+      esac
+    fi
+    case "$codigo" in
+      404|410|403) return 2 ;;
+    esac
+    if [ "$intento" -lt "$intentos" ]; then
+      dato "la red falló (intento $intento de $intentos); reintento en $((intento))s"
+      sleep "$intento" 2>/dev/null || true
+    fi
+    intento=$((intento + 1))
+  done
+  return 1
+}
+
+huella_archivo() {
+  if hay sha256sum; then sha256sum "$1" 2>/dev/null | cut -d' ' -f1
+  elif hay shasum; then shasum -a 256 "$1" 2>/dev/null | cut -d' ' -f1
+  elif hay openssl; then openssl dgst -sha256 "$1" 2>/dev/null | sed 's/.*= *//'
+  elif hay busybox; then busybox sha256sum "$1" 2>/dev/null | cut -d' ' -f1
+  else return 1; fi
+}
+
+# ─────────────── git ───────────────
+asegurar_git() {
+  hay git && { GIT_ORIGEN="sistema"; return 0; }
+  paso "Instalando git"
+  if puedo_instalar_sistema && pedir_permiso "git (para descargar el proyecto)"; then
+    instalar_paquete_sistema git || true
+  fi
+  if hay git; then
+    GIT_ORIGEN="instalado"
+    bien "git $(git --version 2>/dev/null | awk '{print $3}')"
+    return 0
+  fi
+  return 1
+}
+
+# ─────────────── Node ───────────────
+node_sirve() {
+  hay node || return 1
+  local v
+  v="$(node -p 'process.versions.node' 2>/dev/null || echo "0.0.0")"
+  version_mayor_o_igual "$v" "$NODE_MINIMO"
+}
+
+# Node oficial, descomprimido en ~/.local/opt, sin root y sin tocar el
+# sistema. La huella sale del SHASUMS256.txt que publica nodejs.org junto a
+# los archivos: se comprueba igual que la del instalador.
+instalar_node_oficial() {
+  [ "${SHIN_NO_INSTALAR:-0}" = "1" ] && return 1
+  local base="${SHIN_NODE_BASE:-https://nodejs.org/dist/latest-v22.x}"
+  local tmp="$DESTINO/.node-tmp" so arch archivo esperada
+  case "$(uname -s)" in
+    Darwin) so="darwin" ;;
+    *)      so="linux" ;;
+  esac
+  case "$ARQ_SIS" in
+    x86_64) arch="x64" ;;
+    arm64)  arch="arm64" ;;
+    armv7)  arch="armv7l" ;;
+    *)
+      aviso "no hay Node oficial para $ARQ_SIS; instálalo a mano."
+      return 1 ;;
+  esac
+
+  dato "descargando Node desde nodejs.org (sin root, no toca el sistema)"
+  rm -rf -- "$tmp"
+  mkdir -p "$tmp"
+  if ! descargar_url "$base/SHASUMS256.txt" "$tmp/SHASUMS256.txt"; then
+    rm -rf -- "$tmp"
+    aviso "no pude consultar nodejs.org"
+    return 1
+  fi
+  archivo="$(grep -oE "node-v[0-9.]+-${so}-${arch}\.tar\.gz" "$tmp/SHASUMS256.txt" | head -n1 || true)"
+  if [ -z "$archivo" ]; then
+    rm -rf -- "$tmp"
+    aviso "nodejs.org no publica un paquete para ${so}-${arch}"
+    return 1
+  fi
+  esperada="$(awk -v f="$archivo" '$2==f {print $1}' "$tmp/SHASUMS256.txt" | head -n1 || true)"
+  if ! descargar_url "$base/$archivo" "$tmp/$archivo"; then
+    rm -rf -- "$tmp"
+    aviso "no pude descargar $archivo"
+    return 1
+  fi
+  local obtenida
+  obtenida="$(huella_archivo "$tmp/$archivo" || true)"
+  if [ -z "$esperada" ] || [ "$esperada" != "$obtenida" ]; then
+    rm -rf -- "$tmp"
+    error "la huella de Node no coincide; no lo instalo."
+    return 1
+  fi
+
+  local destino_base="$HOME/.local/opt"
+  local carpeta
+  carpeta="$(printf '%s' "$archivo" | sed 's/\.tar\.gz$//')"
+  mkdir -p "$destino_base"
+  if ! tar -xzf "$tmp/$archivo" -C "$tmp" 2>/dev/null; then
+    rm -rf -- "$tmp"
+    aviso "no pude descomprimir $archivo (¿falta tar?)"
+    return 1
+  fi
+  rm -rf -- "$destino_base/$carpeta"
+  mv -- "$tmp/$carpeta" "$destino_base/$carpeta" || { rm -rf -- "$tmp"; return 1; }
+  ln -sfn "$destino_base/$carpeta" "$destino_base/node"
+  rm -rf -- "$tmp"
+
+  NODE_RAIZ="$destino_base/node"
+  NODE_ORIGEN="nodejs.org ($carpeta)"
+  PATH="$NODE_RAIZ/bin:$PATH"
+  export PATH
+  hash -r 2>/dev/null || true
+  bien "node $("$NODE_RAIZ/bin/node" -p 'process.versions.node' 2>/dev/null || echo '?') en $NODE_RAIZ"
+  persistir_path "$NODE_RAIZ/bin"
+  return 0
+}
+
+asegurar_node() {
+  if node_sirve && hay npm; then
+    NODE_ORIGEN="sistema"
+    comprobar_npm_minimo
+    return 0
+  fi
+  # Se guarda lo que había para poder decir la verdad al final: no es lo
+  # mismo "no hay Node" que "hay uno viejo que no sirve".
+  NODE_VIEJO=""
+  if hay node; then NODE_VIEJO="$(node -p 'process.versions.node' 2>/dev/null || echo '?')"; fi
+  paso "Preparando Node.js"
+  case "$PLATAFORMA" in
+    termux)
+      if pedir_permiso "Node.js (paquete de Termux)"; then
+        dato "instalando nodejs-lts… (puede tardar varios minutos)"
+        instalar_paquete_sistema nodejs-lts || instalar_paquete_sistema nodejs
+      fi
+      ;;
+    alpine)
+      # Alpine usa musl: el paquete oficial de nodejs.org no arranca aquí.
+      if pedir_permiso "nodejs y npm (apk)"; then
+        instalar_paquete_sistema nodejs npm
+      fi
+      ;;
+    macos)
+      if [ "$GESTOR" = "brew" ] && pedir_permiso "node@22 (Homebrew)"; then
+        instalar_paquete_sistema node@22
+        [ -d "$(brew --prefix 2>/dev/null)/opt/node@22/bin" ] && {
+          PATH="$(brew --prefix)/opt/node@22/bin:$PATH"; export PATH
+        }
+      fi
+      ;;
+    *)
+      if puedo_instalar_sistema && pedir_permiso "Node 22 (gestor de paquetes del sistema)"; then
+        # El nodejs de las distribuciones suele ser viejo; se prueba y, si
+        # no llega al mínimo, se cae al paquete oficial sin root.
+        instalar_paquete_sistema nodejs npm || true
+      fi
+      ;;
+  esac
+  hash -r 2>/dev/null || true
+
+  if node_sirve && hay npm; then
+    bien "node $(node -p 'process.versions.node') (paquete del sistema)"
+    NODE_ORIGEN="paquete del sistema"
+    comprobar_npm_minimo
+    return 0
+  fi
+
+  case "$PLATAFORMA" in
+    termux)
+      morir "Termux tiene Node pero no la versión mínima ($NODE_MINIMO).
+  Pruébalo a mano:  pkg install nodejs-lts && node -v" ;;
+    alpine)
+      morir "No pude instalar Node en Alpine.
+  A mano:  apk add --no-cache nodejs npm" ;;
+  esac
+
+  if instalar_node_oficial; then
+    comprobar_npm_minimo
+    return 0
+  fi
+
+  if [ -n "${NODE_VIEJO:-}" ]; then
+    morir "Node $NODE_VIEJO es demasiado antiguo (hace falta $NODE_MINIMO o más) y no pude actualizarlo.
+  Opciones:
+    · Ubuntu/Debian:  sudo apt install -y nodejs npm
+    · Fedora:         sudo dnf install -y nodejs npm
+    · Alpine:         sudo apk add nodejs npm
+    · macOS:          brew install node@22
+    · sin root:       descárgalo de https://nodejs.org y añade su bin/ al PATH
+  Después vuelve a ejecutar este mismo comando."
+  fi
+
+  morir "Hace falta Node $NODE_MINIMO o superior y no pude instalarlo.
+  Opciones:
+    · Ubuntu/Debian:  sudo apt install -y nodejs npm     (o nodejs desde nodesource)
+    · Fedora:         sudo dnf install -y nodejs npm
+    · macOS:          brew install node@22
+    · sin root:       descárgalo de https://nodejs.org y añade su bin/ al PATH
+  Después vuelve a ejecutar este mismo comando."
+}
+
+comprobar_npm_minimo() {
+  hay npm || morir "Hay Node pero no npm, y sin npm no puedo instalar las dependencias."
+  local v
+  v="$(npm -v 2>/dev/null || echo '0.0.0')"
+  if ! version_mayor_o_igual "$v" "$NPM_MINIMO"; then
+    morir "npm $v es demasiado antiguo (hace falta $NPM_MINIMO o más).
+  Actualízalo:  npm install -g npm@latest"
+  fi
+  return 0
+}
+
+# ─────────────── PATH que sobrevive al reinicio ───────────────
+# Escribir en el rc del shell es de las pocas veces en que un instalador
+# toca algo fuera de su carpeta, así que se hace con tres cuidados: solo
+# si la carpeta no está ya en el PATH, solo con marcas propias para poder
+# volver atrás, y nunca dos veces (repetir el comando no añade otra línea).
+persistir_path() {
+  local dir="$1" marcado=0 rc
+  [ -n "$dir" ] || return 0
+  [ "${SHIN_NO_PATH:-0}" = "1" ] && return 0
+  for rc in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+    [ -f "$rc" ] || continue
+    if grep -qF "# >>> Shin-MD >>>" "$rc" 2>/dev/null; then
+      marcado=1
+      # Ya hay bloque: si no tiene esta carpeta, se añade dentro.
+      if ! grep -qF "$dir" "$rc" 2>/dev/null; then
+        # Se inserta una línea antes del cierre del bloque.
+        local tmp="$rc.shin-tmp"
+        if awk -v d="$dir" '
+          /# >>> Shin-MD >>>/ {dentro=1}
+          dentro && /# <<< Shin-MD <<</ && !hecho {print "export PATH=\"" d ":$PATH\""; hecho=1}
+          {print}
+        ' "$rc" > "$tmp" 2>/dev/null && mv -f -- "$tmp" "$rc"; then
+          :
+        else
+          rm -f -- "$tmp"
+        fi
+      fi
+    fi
+  done
+  [ "$marcado" -eq 1 ] && return 0
+
+  # Sin bloque todavía: se crea en el rc que de verdad se lee.
+  local destino_rc=""
+  case "${SHELL:-}" in
+    */zsh) [ -f "$HOME/.zshrc" ] && destino_rc="$HOME/.zshrc" ;;
+    */bash) [ -f "$HOME/.bashrc" ] && destino_rc="$HOME/.bashrc" ;;
+  esac
+  if [ -z "$destino_rc" ]; then
+    for rc in "$HOME/.bashrc" "$HOME/.profile" "$HOME/.zshrc"; do
+      [ -f "$rc" ] && { destino_rc="$rc"; break; }
+    done
+  fi
+  [ -n "$destino_rc" ] || destino_rc="$HOME/.profile"
+
+  {
+    printf '\n# >>> Shin-MD >>>\n'
+    printf '# Añadido por el instalador de %s. Para quitarlo, borra este bloque.\n' "$NOMBRE"
+    printf 'export PATH="%s:$PATH"\n' "$dir"
+    printf '# <<< Shin-MD <<<\n'
+  } >> "$destino_rc" 2>/dev/null || { aviso "no pude escribir en $destino_rc"; return 0; }
+  dato "PATH actualizado en $destino_rc (solo este bloque; se puede borrar)"
+}
+
+# ─────────────── la puerta única ───────────────
+asegurar_entorno() {
+  detectar_plataforma
+  paso "Entorno"
+  dato "$(describir_plataforma)"
+
+  if ! hay curl && ! hay wget; then
+    if puedo_instalar_sistema && pedir_permiso "curl"; then
+      instalar_paquete_sistema curl || true
+    fi
+    if ! hay curl && ! hay wget; then
+      morir "No hay curl ni wget, y sin uno de los dos no puedo descargar nada.
+  Instálalo:  $(sugerencia_paquete curl)"
+    fi
+  fi
+
+  if ! asegurar_git; then
+    morir "Hace falta git para descargar $NOMBRE.
+  Instálalo a mano:  $(sugerencia_paquete git)
+  Y vuelve a ejecutar este mismo comando."
+  fi
+
+  asegurar_node
+  comprobar_npm_minimo
+  NODE_V="$(node -p 'process.versions.node' 2>/dev/null || echo '?')"
+  NPM_V="$(npm -v 2>/dev/null || echo '?')"
+  bien "node $NODE_V · npm $NPM_V · $ARQ_SIS"
+}
+
+describir_plataforma() {
+  case "$PLATAFORMA" in
+    termux) printf 'Termux (Android) · %s' "$ARQ_SIS" ;;
+    debian) printf 'Debian/Ubuntu · %s' "$ARQ_SIS" ;;
+    fedora) printf 'Fedora/RHEL · %s' "$ARQ_SIS" ;;
+    alpine) printf 'Alpine (musl) · %s' "$ARQ_SIS" ;;
+    arch)   printf 'Arch · %s' "$ARQ_SIS" ;;
+    macos)  printf 'macOS · %s' "$ARQ_SIS" ;;
+    *)      printf '%s · %s' "$(uname -s 2>/dev/null || echo '?')" "$ARQ_SIS" ;;
+  esac
+}
+
+sugerencia_paquete() {
+  case "$PLATAFORMA:$1" in
+    termux:*) printf 'pkg install %s' "$1" ;;
+    debian:*) printf 'sudo apt install -y %s' "$1" ;;
+    fedora:*) printf 'sudo dnf install -y %s' "$1" ;;
+    alpine:*) printf 'sudo apk add %s' "$1" ;;
+    arch:*)   printf 'sudo pacman -S %s' "$1" ;;
+    macos:*)  printf 'brew install %s' "$1" ;;
+    *)        printf '%s (con el gestor de paquetes de tu sistema)' "$1" ;;
+  esac
 }
 
 # ─────────────────────── comprobaciones ───────────────────────
@@ -359,67 +858,38 @@ comprobar_node() {
   return 0
 }
 
-comprobar_npm() {
-  if ! hay npm; then
-    error "No hay npm (viene con Node.js)."
-    return 1
-  fi
-  NPM_V="$(npm -v 2>/dev/null || echo "0.0.0")"
-  if ! version_mayor_o_igual "$NPM_V" "$NPM_MINIMO"; then
-    error "npm $NPM_V es antiguo (hace falta $NPM_MINIMO o más)."
-    printf '  %sActualizar:%s npm install -g npm@latest\n\n' "$C_GRIS" "$C_RESET" >&2
-    return 1
-  fi
-  return 0
-}
-
 # ───────────────────────── Termux ─────────────────────────
-preparar_termux() {
+# Extras de Termux. No son obligatorios para arrancar —el bot funciona sin
+# ellos— así que un fallo aquí se avisa y se sigue: música, stickers animados
+# y descargas pierden alguna función, nada más.
+extras_termux() {
   es_termux || return 0
-  # Termux pone $PREFIX/bin en el PATH; si alguien arranca con un PATH raro,
-  # lo añadimos para que pkg, git y termux-wake-lock se encuentren igual.
   if [ -n "${PREFIX:-}" ] && [ -d "$PREFIX/bin" ]; then
     case ":$PATH:" in
       *":$PREFIX/bin:"*) ;;
       *) PATH="$PREFIX/bin:$PATH"; export PATH ;;
     esac
   fi
-  paso "Android / Termux detectado"
-  dato "PREFIX=$PREFIX"
-  dato "arquitectura $(arquitectura)"
-
-  if hay pkg; then
-    if ! hay git; then
-      dato "instalando git…"
-      pkg install -y git >/dev/null 2>&1 || morir "No se pudo instalar git con pkg."
-    fi
-    if ! comprobar_node; then
-      dato "instalando nodejs-lts… (puede tardar varios minutos)"
-      pkg install -y nodejs-lts >/dev/null 2>&1 || morir "No se pudo instalar nodejs-lts."
-      comprobar_node || morir "Node sigue sin cumplir el mínimo tras instalarlo."
-    fi
-    # Opcionales: si fallan, el bot arranca igual.
-    if ! hay ffmpeg; then
-      dato "instalando ffmpeg (multimedia y stickers)…"
-      pkg install -y ffmpeg >/dev/null 2>&1 || aviso "ffmpeg no se instaló; stickers animados y audio pueden fallar."
-    fi
-    if ! hay yt-dlp; then
-      dato "instalando yt-dlp (descargas)…"
-      # Termux lo empaqueta como `yt-dlp` en unas ramas y como `python-yt-dlp`
-      # (que provee el comando) en otras.
-      if ! pkg install -y yt-dlp >/dev/null 2>&1; then
-        pkg install -y python-yt-dlp >/dev/null 2>&1 \
-          || aviso "yt-dlp no se instaló; las descargas usarán solo los proveedores web."
-      fi
-    fi
-    # termux-wake-lock vive en termux-tools, que viene de serie. Solo se
-    # instala si alguien lo quitó; termux-api es otra cosa y aquí no se usa.
-    if ! hay termux-wake-lock; then
-      pkg install -y termux-tools >/dev/null 2>&1 || true
-    fi
-  else
-    aviso "Estás en Termux pero no encuentro 'pkg'. Instala git y nodejs-lts a mano."
+  hay pkg || { aviso "Estás en Termux pero no encuentro 'pkg'. Instala lo que falte a mano."; return 0; }
+  if ! hay ffmpeg; then
+    dato "instalando ffmpeg (multimedia y stickers)…"
+    pkg install -y ffmpeg >/dev/null 2>&1 || aviso "ffmpeg no se instaló; stickers animados y audio pueden fallar."
   fi
+  if ! hay yt-dlp; then
+    dato "instalando yt-dlp (descargas)…"
+    # Termux lo empaqueta como `yt-dlp` en unas ramas y como `python-yt-dlp`
+    # (que provee el comando) en otras.
+    if ! pkg install -y yt-dlp >/dev/null 2>&1; then
+      pkg install -y python-yt-dlp >/dev/null 2>&1 \
+        || aviso "yt-dlp no se instaló; las descargas usarán solo los proveedores web."
+    fi
+  fi
+  # termux-wake-lock vive en termux-tools, que viene de serie. Solo se
+  # instala si alguien lo quitó; termux-api es otra cosa y aquí no se usa.
+  if ! hay termux-wake-lock; then
+    pkg install -y termux-tools >/dev/null 2>&1 || true
+  fi
+  return 0
 }
 
 wakelock() {
@@ -603,11 +1073,39 @@ respaldar_datos() {
   mv -- "$parcial" "$destino" || fallo "no pude cerrar el respaldo en $destino."
   RESPALDO_HECHO="$destino"
   bien "datos respaldados en ${destino#"$DESTINO/"}"
+  podar_respaldos "$motivo"
+}
+
+# Los respaldos automáticos no pueden crecer sin fin: cada uno lleva dentro
+# Sessions/ y data/ enteros, y en un teléfono eso son cientos de megas por
+# copia. Se conservan los últimos (5 por defecto, SHIN_RESPALDOS_A_GUARDAR) y
+# los que alguien haya hecho a mano no se tocan nunca: solo se poda el prefijo
+# que pone este script, y solo con el nombre exacto que él mismo escribe.
+podar_respaldos() {
+  local motivo="$1" limite="${SHIN_RESPALDOS_A_GUARDAR:-5}" n=0 d patron
+  case "$motivo" in pre-*) ;; *) return 0 ;; esac
+  [ -d "$DESTINO/backups" ] || return 0
+  case "$limite" in ''|*[!0-9]*) limite=5 ;; esac
+  patron="^${motivo}-[0-9]{8}-[0-9]{6}$"
+  while IFS= read -r d; do
+    [ -n "$d" ] || continue
+    n=$((n + 1))
+    [ "$n" -le "$limite" ] && continue
+    # En una subshell: si la protección de rutas dijera que no, se avisa y se
+    # sigue, en vez de tumbar una actualización que ya estaba bien.
+    ( borrar_arbol "$DESTINO/backups/$d" "respaldo antiguo" ) 2>/dev/null \
+      || aviso "no pude retirar el respaldo antiguo $d (puedes borrarlo tú)"
+  done < <(ls -1 "$DESTINO/backups" 2>/dev/null | grep -E "$patron" | sort -r)
+  return 0
 }
 
 # ¿Está el bot corriendo ahora mismo? Con WAL la copia consistente lo soporta,
 # pero conviene decirlo: actualizar con el bot vivo puede dejarlo a medias.
 bot_corriendo() {
+  if [ -d /proc/$$ ]; then
+    nuestro_bot_corriendo && return 0
+    return 1
+  fi
   if hay pgrep; then
     pgrep -f "node .*index\.js" >/dev/null 2>&1 && return 0
     return 1
@@ -790,8 +1288,9 @@ descargar_limpio() {
 comprobar_espacio() {
   # Dos umbrales: por debajo del duro no se empieza (las dependencias no
   # caben), entre ambos se avisa y se deja decidir al usuario.
-  local libre_kb duro_mb="${SHIN_ESPACIO_MIN_MB:-400}" aviso_mb=1200 libre_mb
-  libre_kb="$(df -Pk "$DESTINO" 2>/dev/null | awk 'NR==2 {print $4}')"
+  local libre_kb duro_mb="${SHIN_ESPACIO_MIN_MB:-400}" aviso_mb=1200 libre_mb ruta_df="$DESTINO"
+  [ -e "$ruta_df" ] || ruta_df="$(dirname "$DESTINO")"
+  libre_kb="$(df -Pk "$ruta_df" 2>/dev/null | awk 'NR==2 {print $4}')"
   case "$libre_kb" in ''|*[!0-9]*) return 0 ;; esac   # si no se puede medir, no se bloquea
   libre_mb=$((libre_kb / 1024))
   if [ "$libre_mb" -lt "$duro_mb" ]; then
@@ -811,33 +1310,118 @@ comprobar_espacio() {
   fi
 }
 
+# ─────────────────────── npm que se atasca ───────────────────────
+# En el teléfono, la segunda instalación encima de la primera acaba muchas
+# veces así:
+#
+#   npm ERR! code EEXIST
+#   npm ERR! File exists: …/node_modules/…
+#   npm ERR! Remove the existing file and try again
+#
+# Eso es lo que en pantalla parece "archivos duplicados": no hay dos
+# instalaciones, es npm intentando escribir sobre un árbol que quedó a medias
+# (Android mata procesos cuando anda justo de memoria, y un `npm` que muere a
+# mitad deja justo eso). No es un fallo del proyecto ni de tu teléfono: es un
+# estado que se puede reconocer y reparar sin molestar al usuario.
+#
+# Se ejecuta npm dejando el registro en un archivo (para poder leer el motivo
+# sin quitarle al usuario la barra de progreso, que en Android dura minutos).
+# Si el fallo es de este tipo, se borra node_modules —se regenera solo, no hay
+# nada que perder ahí— y se repite UNA vez. Cualquier otro error se devuelve
+# tal cual: adivinar más que esto sería tapar un problema de verdad.
+npm_instalar() {
+  local modo="$1" registro="$DESTINO/.npm-instalar.log" codigo=0
+  ( cd "$DESTINO" && npm "$modo" --include=optional --no-audit --no-fund 2>&1 ) \
+    | tee "$registro" || codigo=$?
+  if [ "$codigo" -eq 0 ]; then
+    rm -f -- "$registro"
+    return 0
+  fi
+  if grep -qiE 'EEXIST|ENOTEMPTY|file exists|already exists|dest already exists' "$registro" 2>/dev/null; then
+    aviso "npm chocó con restos de una instalación anterior (archivos duplicados)."
+    dato "borro node_modules y lo repito una sola vez; se regenera solo."
+    if [ -d "$DESTINO/node_modules" ]; then
+      borrar_arbol "$DESTINO/node_modules" "dependencias a medias"
+    fi
+    codigo=0
+    # --prefer-offline: la caché de npm ya tiene casi todo lo descargado, y en
+    # datos móviles eso se nota. Si algo falta, se baja sin más.
+    ( cd "$DESTINO" && npm "$modo" --include=optional --no-audit --no-fund --prefer-offline 2>&1 ) \
+      | tee "$registro" || codigo=$?
+  fi
+  if [ "$codigo" -eq 0 ]; then
+    rm -f -- "$registro"
+    return 0
+  fi
+  rm -f -- "$registro"
+  return 1
+}
+
 instalar_dependencias() {
   paso "Instalando dependencias"
   dato "en Android esto tarda varios minutos; no cierres la terminal"
   comprobar_espacio
+  local modo="install"
+  [ -f "$DESTINO/package-lock.json" ] && modo="ci"
   # En una actualización NO se sale del proceso: hay que dejar que el llamador
   # revierta al commit anterior. Matar el script aquí dejaría el código nuevo
   # a medio instalar y sin vuelta atrás.
-  if [ -f "$DESTINO/package-lock.json" ]; then
-    if ! ( cd "$DESTINO" && npm ci --include=optional --no-audit --no-fund ); then
-      if [ "$ACTUALIZANDO" -eq 1 ]; then
-        error "Falló la instalación de dependencias."
-        return 1
-      fi
-      morir "Falló la instalación de dependencias.
+  if ! npm_instalar "$modo"; then
+    if [ "$ACTUALIZANDO" -eq 1 ]; then
+      error "Falló la instalación de dependencias."
+      return 1
+    fi
+    morir "Falló la instalación de dependencias.
   Nada quedó marcado como instalado. Vuelve a ejecutar el instalador;
   si el error se repite, revisa los mensajes de npm de arriba."
-    fi
-  else
-    if ! ( cd "$DESTINO" && npm install --include=optional --no-audit --no-fund ); then
-      if [ "$ACTUALIZANDO" -eq 1 ]; then
-        error "Falló la instalación de dependencias."
-        return 1
-      fi
-      morir "Falló la instalación de dependencias."
-    fi
   fi
   bien "dependencias instaladas"
+}
+
+# ¿Están los cuatro módulos que el bot necesita para arrancar? Es la pregunta
+# más barata que se puede hacer a una instalación, y la que más veces acierta.
+dependencias_sanas() {
+  local m
+  for m in express pino baileys sharp; do
+    ( cd "$DESTINO" && node -e "require.resolve('$m')" >/dev/null 2>&1 ) || return 1
+  done
+  return 0
+}
+
+parches_aplicados() {
+  local script
+  script="$(script_de_parches || true)"
+  [ -n "$script" ] || return 0
+  [ -d "$DESTINO/node_modules/baileys" ] || return 1
+  ( cd "$DESTINO" && node "$script" --check >/dev/null 2>&1 )
+}
+
+# ¿Ya está la carpeta en la versión objetivo y sana? Es lo que decide si una
+# segunda pasada del instalador tiene algo que hacer o no.
+al_dia() {
+  local cabeza="$1" objetivo="" etiqueta="$VERSION_PEDIDA"
+  case "$etiqueta" in
+    "") ;;
+    v*) ;;
+    *) etiqueta="v$etiqueta" ;;
+  esac
+  # Pedir --branch a propósito es pedir algo, aunque el código sea el mismo:
+  # una instalación fijada a una etiqueta está desprendida, y volver a la rama
+  # es justo lo que se ha venido a hacer.
+  if [ -z "$VERSION_PEDIDA" ] && [ "$RAMA_EXPLICITA" -eq 1 ]; then
+    if [ "$(git -C "$DESTINO" rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)" = "HEAD" ]; then
+      return 1
+    fi
+  fi
+  if [ -n "$VERSION_PEDIDA" ]; then
+    objetivo="$(git -C "$DESTINO" rev-parse --verify --quiet "refs/tags/${etiqueta}^{commit}" 2>/dev/null || true)"
+  else
+    objetivo="$(git -C "$DESTINO" rev-parse --verify --quiet "refs/remotes/origin/${RAMA}^{commit}" 2>/dev/null || true)"
+  fi
+  [ -n "$objetivo" ] || return 1
+  [ "$cabeza" = "$objetivo" ] || return 1
+  dependencias_sanas || return 1
+  parches_aplicados
 }
 
 preparar_env() {
@@ -914,6 +1498,11 @@ escribir_estado() {
     printf 'fecha=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "-")"
     printf 'node=%s\n' "${NODE_V:-?}"
     printf 'arquitectura=%s\n' "$(arquitectura)"
+    printf 'entorno=%s\n' "$(describir_plataforma 2>/dev/null || echo '?')"
+    printf 'node_origen=%s\n' "${NODE_ORIGEN:-?}"
+    printf 'git_origen=%s\n' "${GIT_ORIGEN:-?}"
+    printf 'instalador_sha=%s\n' "${SHIN_INSTALADOR_HUELLA:-desconocido}"
+    printf 'instalador_espejo=%s\n' "${SHIN_INSTALADOR_ESPEJO:-desconocido}"
   } > "$DESTINO/.shin-install.tmp"
   mv -f "$DESTINO/.shin-install.tmp" "$DESTINO/.shin-install"
 }
@@ -921,7 +1510,7 @@ escribir_estado() {
 estado_instalado() { [ -f "$DESTINO/.shin-install" ] && [ -d "$DESTINO/node_modules" ]; }
 
 # ¿Este proyecto trae ese script de npm? Sirve para no recomendar comandos que
-# un fork antiguo no tiene: Levi-MD 3.0.3, por ejemplo, no conoce `vigia`.
+# un fork antiguo no tiene: una copia de hace un año, por ejemplo, no conoce `vigia`.
 tiene_script() {
   [ -f "$DESTINO/package.json" ] || return 1
   node -e 'const s=(require(process.argv[1]).scripts||{});process.exit(s[process.argv[2]]?0:1)' \
@@ -944,6 +1533,9 @@ resumen() {
   # suelta, npm se queja de que no hay package.json y no se entiende por qué.
   # Un solo comando para todo: panel arriba y el bot vigilado debajo.
   printf '\n%s  Arrancar%s\n' "$C_NEG" "$C_RESET"
+  if [ -n "${LANZADOR_NOMBRE:-}" ]; then
+    printf '    %s --code                  (desde cualquier carpeta, sin cd)\n' "$LANZADOR_NOMBRE"
+  fi
   printf '    cd %s && npm start -- --code\n\n' "$DESTINO"
   if tiene_script consola; then
     printf '    (el panel se queda arriba y lo que dice el bot va debajo;\n'
@@ -955,11 +1547,7 @@ resumen() {
   fi
   printf '%s  Vincular WhatsApp%s\n' "$C_NEG" "$C_RESET"
   printf '    la opción --code pide un código de 8 dígitos (WhatsApp → Dispositivos vinculados)\n'
-  if tiene_script start:qr; then
-    printf '    si prefieres QR:  cd %s && npm run start:qr\n\n' "$DESTINO"
-  else
-    printf '\n'
-  fi
+  printf '    el bot te lo enseña en un panel y te dice dónde teclearlo\n\n'
   printf '%s  Parar%s\n' "$C_NEG" "$C_RESET"
   printf '    Ctrl+C\n\n'
   printf '%s  Mantenerlo vivo%s\n' "$C_NEG" "$C_RESET"
@@ -972,19 +1560,163 @@ resumen() {
     printf '    en un servidor: usa tmux o systemd, o deja la terminal abierta\n\n'
   fi
   printf '%s  Actualizar / reparar / ver registros%s\n' "$C_NEG" "$C_RESET"
+  if [ -n "${LANZADOR_NOMBRE:-}" ]; then
+    printf '    %s update                  (actualiza y arranca)\n' "$LANZADOR_NOMBRE"
+    printf '    %s repair                  (repara y arranca)\n' "$LANZADOR_NOMBRE"
+  fi
   printf '    bash %s/install.sh --update\n' "$DESTINO"
   printf '    bash %s/install.sh --repair\n' "$DESTINO"
   printf '    tail -f %s/logs/*.log\n\n' "$DESTINO"
   printf '%s  Tus datos (.env, Sessions/, data/) nunca se tocan.%s\n\n' "$C_GRIS" "$C_RESET"
 }
 
+# ═══════════════════════════════════════════════════════════════════
+#  ARRANCAR Y EL COMANDO `shin`
+#
+#  Instalar está bien; acordarse de `cd ~/Shin-MD && npm start -- --code`
+#  cada vez, no. El instalador deja un lanzador en el PATH que sabe dónde
+#  vive la instalación:
+#
+#      shin              arrancar el bot
+#      shin update       actualizar y arrancar
+#      shin repair       reparar y arrancar
+#      shin --code       arrancar pidiendo código de vinculación
+#
+#  Es un archivo de veinte líneas, sin dependencias y sin magia: si algo
+#  va mal, `cat "$(command -v shin)"` lo enseña entero.
+# ═══════════════════════════════════════════════════════════════════
+
+# ¿Hay ya un bot corriendo DESDE ESTA carpeta? No basta con ver un `node
+# index.js` suelto: eso podría ser otro proyecto, y negarse a arrancar por un
+# falso positivo deja al usuario sin bot y sin saber por qué. Se mira la carpeta
+# de trabajo real de cada proceso, que es la que dice de quién es.
+nuestro_bot_corriendo() {
+  local pid cwd_real
+  cwd_real="$(resolver_real "$DESTINO" 2>/dev/null || printf '%s' "$DESTINO")"
+  hay pgrep || return 1
+  for pid in $(pgrep -f 'node .*index\.js' 2>/dev/null || true); do
+    [ -n "$pid" ] || continue
+    [ -d "/proc/$pid/cwd" ] || continue
+    local suyo=""
+    suyo="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
+    [ -n "$suyo" ] || suyo="$( cd "/proc/$pid/cwd" 2>/dev/null && pwd -P )" || true
+    [ "$suyo" = "$cwd_real" ] && return 0
+  done
+  return 1
+}
+
+arrancar_bot() {
+  hay node || morir "No hay Node.js instalado, así que no puedo arrancar el bot."
+  [ -f "$DESTINO/index.js" ] || morir "No hay nada que arrancar en $DESTINO. Instálalo con: bash install.sh"
+  # Pegar el comando otra vez con el bot en marcha no puede acabar en dos bots
+  # peleándose por la misma sesión de WhatsApp y el mismo puerto.
+  if nuestro_bot_corriendo; then
+    aviso "ya hay un $NOMBRE corriendo desde $DESTINO; no arranco otro."
+    dato "para reiniciarlo: Ctrl+C en su terminal y vuelve a escribir shin"
+    return 0
+  fi
+  local entrada="index.js"
+  [ -f "$DESTINO/scripts/consola.mjs" ] && entrada="scripts/consola.mjs"
+  paso "Arrancando $NOMBRE"
+  cd "$DESTINO" || morir "No pude entrar en $DESTINO."
+  if [ -t 1 ]; then
+    dato "deja esta terminal abierta · Ctrl+C para parar · tecla r reinicia el bot"
+  fi
+  # exec: el bot pasa a SER este proceso. Así Ctrl+C y el código de salida son
+  # los del bot, no queda un instalador colgado detrás y, cuando el bot se
+  # muere, no hay un zombie esperando a nadie.
+  exec node "$entrada" ${ARRANQUE_ARGS[@]+"${ARRANQUE_ARGS[@]}"}
+}
+
+carpeta_del_lanzador() {
+  if es_termux && [ -n "${PREFIX:-}" ] && [ -d "$PREFIX/bin" ]; then
+    printf '%s' "$PREFIX/bin"
+    return 0
+  fi
+  local d="$HOME/.local/bin"
+  [ -d "$d" ] || mkdir -p "$d" 2>/dev/null || return 1
+  printf '%s' "$d"
+}
+
+# Deja `shin` en el PATH. Se puede repetir sin miedo: si ya está y es nuestro,
+# se reescribe (por si la instalación cambió de sitio); si hay un `shin` que no
+# es nuestro, no se toca y se usa el nombre del paquete.
+instalar_lanzador() {
+  local dir nombre="shin" archivo bash_real
+  case "$DESTINO" in
+    *"'"*|*'"'*|*'$'*|*'`'*|*'\'*)
+      aviso "la ruta tiene comillas o \$; no creo el comando 'shin' para no escribir un script roto."
+      return 0 ;;
+  esac
+  dir="$(carpeta_del_lanzador)" || return 0
+  [ -n "$dir" ] && [ -w "$dir" ] || { aviso "$dir no es escribible; sigo sin comando 'shin'."; return 0; }
+  if [ -e "$dir/shin" ] && ! grep -qF "$NOMBRE" "$dir/shin" 2>/dev/null; then
+    nombre="$PAQUETE"
+  fi
+  archivo="$dir/$nombre"
+  bash_real="$(command -v bash 2>/dev/null || printf '%s' "${BASH:-/bin/bash}")"
+  # El intérprete se escribe con su ruta real porque en Android no existe
+  # /bin/sh ni /usr/bin/env: un shebang "bonito" no arrancaría.
+  {
+    printf '#!%s\n' "$bash_real"
+    printf '# %s — arranca %s desde cualquier carpeta.\n' "$nombre" "$NOMBRE"
+    printf '# Lo escribe el instalador de %s. Si mueves la instalación de sitio,\n' "$NOMBRE"
+    printf '# vuelve a ejecutar install.sh y se reescribe solo.\n'
+    printf 'INST=%s\n' "'$DESTINO/install.sh'"
+    printf 'BASH=%s\n' "'$bash_real'"
+    cat <<'LANZADOR'
+case "${1:-}" in
+  "")                     exec "$BASH" "$INST" --run ;;
+  update|actualizar)      shift; exec "$BASH" "$INST" --update --go "$@" ;;
+  repair|reparar)         shift; exec "$BASH" "$INST" --repair --go "$@" ;;
+  verify|comprobar)       shift; exec "$BASH" "$INST" --verify "$@" ;;
+  doctor|diagnostico)     shift; exec "$BASH" "$INST" --doctor "$@" ;;
+  service|servicio)       shift; exec "$BASH" "$INST" --service "$@" ;;
+  uninstall|desinstalar)  shift; exec "$BASH" "$INST" --uninstall "$@" ;;
+  -h|--help|help)         exec "$BASH" "$INST" --help ;;
+  *)                      exec "$BASH" "$INST" --run "$@" ;;
+esac
+LANZADOR
+  } > "$archivo.tmp.$$" || { rm -f "$archivo.tmp.$$"; aviso "no pude escribir $archivo"; return 0; }
+  # Si ya estaba igual, no se toca: así `shin update` no reescribe archivos ni
+  # dice nada que el usuario no necesite saber.
+  if [ -f "$archivo" ] && cmp -s "$archivo" "$archivo.tmp.$$"; then
+    rm -f -- "$archivo.tmp.$$"
+    LANZADOR_NOMBRE="$nombre"
+    return 0
+  fi
+  chmod 755 "$archivo.tmp.$$" 2>/dev/null || true
+  mv -f "$archivo.tmp.$$" "$archivo" || { rm -f "$archivo.tmp.$$"; aviso "no pude dejar $archivo"; return 0; }
+  LANZADOR_NOMBRE="$nombre"
+  bien "comando '$nombre' listo ($archivo)"
+  # Si esa carpeta no está en el PATH, el comando existe pero no se encuentra.
+  # Solo se dice cuando el lanzador se escribe de verdad, que es cuando se
+  # puede arreglar; repetirlo en cada actualización sería ruido.
+  case ":$PATH:" in
+    *":$dir:"*) ;;
+    *) aviso "añade $dir al PATH para poder escribir solo '$nombre':"
+       printf '      echo '\''export PATH="%s:$PATH"'\'' >> ~/.bashrc && . ~/.bashrc\n' "$dir" >&2 ;;
+  esac
+}
+
+limpiar_lanzador() {
+  local dir nombre
+  dir="$(carpeta_del_lanzador 2>/dev/null || true)"
+  [ -n "$dir" ] && [ -d "$dir" ] || return 0
+  for nombre in shin "$PAQUETE"; do
+    local archivo="$dir/$nombre"
+    [ -f "$archivo" ] && [ ! -L "$archivo" ] || continue
+    if grep -qF "$DESTINO/install.sh" "$archivo" 2>/dev/null; then
+      rm -f -- "$archivo" 2>/dev/null && dato "comando '$nombre' retirado ($archivo)" || true
+    fi
+  done
+  return 0
+}
+
 # ───────────────────────── acciones ─────────────────────────
 accion_instalar() {
-  preparar_termux
-  comprobar_node || exit 1
-  comprobar_npm  || exit 1
-  paso "Entorno"
-  bien "node $NODE_V   npm $NPM_V   $(arquitectura)"
+  asegurar_entorno
+  extras_termux
 
   INSTALANDO=1
   clonar
@@ -1000,14 +1732,141 @@ accion_instalar() {
   escribir_estado
   INSTALANDO=0
   wakelock
+  instalar_lanzador
   resumen
+}
+
+# --run: arrancar y nada más. Es lo que hace `shin` cuando se escribe a secas.
+# No comprueba versiones ni consulta el repositorio: si tienes el bot instalado
+# y quieres que hable, esperar a un `git fetch` sería una tontería.
+accion_arrancar() {
+  arrancar_bot
+}
+
+# --auto: lo que ejecuta el comando de una línea. Mira en qué estado está la
+# carpeta y hace lo mínimo: instalar si no hay nada, reparar si hay algo roto,
+# actualizar si hay algo nuevo. Siempre termina arrancando el bot.
+accion_auto() {
+  GO=1
+  if ! es_propia "$DESTINO" || [ ! -d "$DESTINO/.git" ] || [ ! -f "$DESTINO/.shin-install" ]; then
+    accion_instalar
+    return 0
+  fi
+  if ! dependencias_sanas || ! parches_aplicados; then
+    accion_reparar
+    return 0
+  fi
+  accion_actualizar
+}
+
+# ═══════════════════════════════════════════════════════════════════
+#  CONSULTAR EL REPOSITORIO
+#
+#  Antes esto era un `git fetch --quiet` y, si fallaba, un «¿sin conexión?»
+#  a secas. Eso es inútil: el 90 % de las veces SÍ hay conexión y el fallo
+#  es otro (HTTP/2 roto por la red móvil, un certificado, un DNS que no
+#  responde). Encima `--quiet` se tragaba el mensaje de git, así que la
+#  única pista se perdía.
+#
+#  Ahora: tres intentos, el segundo y el tercero forzando HTTP/1.1 (que es
+#  el arreglo conocido de «RPC failed; curl 92 HTTP/2 stream …» en redes
+#  móviles), y si aun así falla se ENSEÑA lo que dijo git y se explica qué
+#  es. Nada de adivinar por ti.
+# ═══════════════════════════════════════════════════════════════════
+consultar_repositorio() {
+  if ! hay git; then
+    morir "No encuentro git, y para actualizar hace falta.
+  En Termux:  pkg install git
+  Después vuelve a ejecutar este mismo comando."
+  fi
+
+  local salida rc intento
+  local -a extra_http
+  salida=""
+  intento=1
+  while [ "$intento" -le 3 ]; do
+    # El 2.º y el 3.er intento van por HTTP/1.1: en datos móviles el HTTP/2
+    # se corta a medias y git lo reporta como «RPC failed». No se toca la
+    # configuración global: es solo para este comando.
+    case "$intento" in
+      1) extra_http=() ;;
+      *) extra_http=(-c http.version=HTTP/1.1) ;;
+    esac
+    # --force NO es un capricho: `git fetch --tags` se niega a mover una
+    # etiqueta que ya existe («would clobber existing tag») y devuelve error.
+    # Basta con que el proyecto rehaga una etiqueta —cosa que pasó al
+    # reescribir el historial para corregir las firmas— para que TODA
+    # instalación anterior deje de poder actualizarse, con un error que no
+    # tiene nada que ver con la red. Con --force, las etiquetas locales se
+    # ponen como las del remoto, que es lo que se quiere al actualizar.
+    # Ojo con `set -e`: una asignación desde $(...) que falla aborta el
+    # script entero, y entonces no se llega a explicar nada. De ahí el
+    # `|| rc=$?`.
+    rc=0
+    salida="$(GIT_TERMINAL_PROMPT=0 GIT_ASKPASS='' git -C "$DESTINO" "${extra_http[@]}" -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=30 \
+      fetch --tags --force origin 2>&1)" || rc=$?
+    if [ "$rc" -eq 0 ]; then
+      if [ "$intento" -gt 1 ]; then
+        dato "conectó en el intento $intento (HTTP/1.1)"
+      fi
+      return 0
+    fi
+    if [ "$intento" -lt 3 ]; then
+      dato "intento $intento falló; reintentando…"
+    fi
+    sleep $((intento * 2))
+    intento=$((intento + 1))
+  done
+
+  explicar_fallo_de_red "$salida"
+  return 1
+}
+
+# Traduce el error de git a algo que se pueda accionar. Se queda con la
+# última línea con «fatal:» o «error:», que es la que dice el motivo.
+explicar_fallo_de_red() {
+  local texto linea pista
+  texto="$1"
+  linea="$(printf '%s\n' "$texto" | grep -E 'fatal:|error:' | tail -n 1 | sed 's/^ *//' || true)"
+  pista=""
+  case "$texto" in
+    *"Could not resolve host"*|*"Temporary failure in name resolution"*)
+      pista="No resuelve el nombre: es el DNS, no GitHub. Prueba con otra red (wifi en vez de datos) o pon 1.1.1.1 a mano." ;;
+    *"certificate"*|*"SSL"*)
+      pista="Problema de certificados. En Termux:  pkg install ca-certificates  y reintenta." ;;
+    *"Username"*|*"Authentication"*|*"403"*)
+      pista="GitHub pidió credenciales: el repositorio no responde como público. Revisa con: git -C ${DESTINO:-<ruta>} remote -v" ;;
+    *"remote-https"*)
+      pista="Tu git viene sin soporte HTTPS. En Termux:  pkg install git libcurl  y reintenta." ;;
+    *"RPC failed"*|*"HTTP/2"*|*"early EOF"*|*"invalid index-pack"*)
+      pista="La red corta las transferencias (típico en datos móviles). Ya lo intenté por HTTP/1.1 tres veces." ;;
+    *"Connection timed out"*|*"Connection refused"*|*"unable to access"*)
+      pista="No hay salida a github.com. Comprueba la conexión:  curl -sI https://github.com | head -1" ;;
+    *"would clobber existing tag"*|*"clobber"*)
+      pista="Las etiquetas del proyecto se rehicieron y las tuyas son las viejas. Ya se resuelve solo con --force; si lo ves aquí, es que tu git es muy antiguo." ;;
+    *"dubious ownership"*)
+      pista="El dueño de la carpeta no coincide. Ejecuta:  git config --global --add safe.directory ${DESTINO:-<ruta>}" ;;
+    *) pista="No reconozco este fallo; el mensaje de arriba es lo único que hay." ;;
+  esac
+
+  error "No se pudo consultar el repositorio."
+  printf '\n' >&2
+  if [ -n "$linea" ]; then
+    printf '  %sLo que dijo git:%s\n    %s\n\n' "$C_GRIS" "$C_RESET" "$linea" >&2
+  else
+    printf '  %sgit no dio ningún mensaje.%s\n\n' "$C_GRIS" "$C_RESET" >&2
+  fi
+  printf '  %s%s%s\n\n' "$C_AMAR" "$pista" "$C_RESET" >&2
+  printf '  Nada se ha tocado: ni el código ni tus datos.\n' >&2
+  printf '  Para ver el error completo a mano:\n    git -C %s fetch --tags origin\n' "${DESTINO:-<ruta>}" >&2
 }
 
 accion_actualizar() {
   exigir_destino_conocido update
   exigir_proyecto
-  [ -d "$DESTINO/.git" ] || morir "$DESTINO no es un repositorio git; no puedo actualizarlo."
-  comprobar_node || exit 1
+  [ -d "$DESTINO/.git" ] || morir "$DESTINO no es un repositorio git; no puedo actualizarlo.
+  Si lo instalaste sin git, vuelve a ejecutar el comando de una línea."
+  asegurar_entorno
   paso "Actualizando $NOMBRE"
   if [ -n "$(git -C "$DESTINO" status --porcelain --untracked-files=no 2>/dev/null || true)" ]; then
     morir "Tienes cambios propios en archivos del proyecto. No los toco.
@@ -1018,16 +1877,31 @@ accion_actualizar() {
     aviso "parece que el bot está corriendo. Para que no quede a medias, páralo"
     aviso "con Ctrl+C antes de continuar. La copia de la base sí es consistente."
   fi
-  respaldar_datos "pre-actualizacion"
-  local previo esquema_antes db_del_bot
+  local previo rama_previa esquema_antes db_del_bot
   previo="$(git -C "$DESTINO" rev-parse HEAD)"
-  db_del_bot="$DESTINO/data/shin.db"
+  rama_previa="$(git -C "$DESTINO" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+  db_del_bot="${SHIN_DB_PATH:-$DESTINO/data/shin.db}"
   esquema_antes="$(version_esquema_db "$db_del_bot")"
-  dato "versión actual ${previo:0:7}${esquema_antes:+   base en esquema v$esquema_antes}"
 
-  if ! git -C "$DESTINO" fetch --quiet --tags origin; then
-    morir "No se pudo consultar el repositorio (¿sin conexión?)."
+  # La consulta al repositorio va ANTES del respaldo, no después. Si no hay
+  # red, se para aquí y no se ha copiado ni un byte; antes se respaldaba
+  # primero, así que cada intento sin conexión dejaba un respaldo inútil
+  # (y en un teléfono eso son cientos de megas repetidos).
+  consultar_repositorio
+
+  # Repetir el mismo comando tiene que ser barato e idempotente: si el código
+  # ya es el objetivo, las dependencias están enteras y los parches puestos,
+  # no hay nada que hacer. Ni respaldo nuevo, ni npm, ni un segundo de espera.
+  if al_dia "$previo"; then
+    dato "versión actual ${previo:0:7}, que es la última de ${VERSION_PEDIDA:-$RAMA}"
+    bien "no hay nada que actualizar: ni el código ni tus datos se tocan"
+    instalar_lanzador
+    escribir_estado
+    return 0
   fi
+
+  dato "versión actual ${previo:0:7}${esquema_antes:+   base en esquema v$esquema_antes}"
+  respaldar_datos "pre-actualizacion"
 
   local fijada=""
   fijada="$(git -C "$DESTINO" describe --tags --exact-match HEAD 2>/dev/null || true)"
@@ -1042,6 +1916,12 @@ accion_actualizar() {
       fi
       bien "siguiendo la rama $RAMA (ya no está fijada a una versión)"
     elif [ -n "$VERSION_PEDIDA" ]; then
+      if ! git -C "$DESTINO" rev-parse --verify --quiet "refs/tags/$VERSION_PEDIDA" >/dev/null 2>&1; then
+        case "$VERSION_PEDIDA" in
+          v*) ;;
+          *) git -C "$DESTINO" rev-parse --verify --quiet "refs/tags/v$VERSION_PEDIDA" >/dev/null 2>&1 && VERSION_PEDIDA="v$VERSION_PEDIDA" ;;
+        esac
+      fi
       dato "instalación fijada en ${fijada:-$previo}; pasando a la versión $VERSION_PEDIDA"
       if ! git -C "$DESTINO" rev-parse --verify --quiet "refs/tags/$VERSION_PEDIDA" >/dev/null 2>&1; then
         morir "No existe la versión $VERSION_PEDIDA.
@@ -1059,6 +1939,12 @@ accion_actualizar() {
     fi
   else
     if [ -n "$VERSION_PEDIDA" ]; then
+      if ! git -C "$DESTINO" rev-parse --verify --quiet "refs/tags/$VERSION_PEDIDA" >/dev/null 2>&1; then
+        case "$VERSION_PEDIDA" in
+          v*) ;;
+          *) git -C "$DESTINO" rev-parse --verify --quiet "refs/tags/v$VERSION_PEDIDA" >/dev/null 2>&1 && VERSION_PEDIDA="v$VERSION_PEDIDA" ;;
+        esac
+      fi
       if ! git -C "$DESTINO" rev-parse --verify --quiet "refs/tags/$VERSION_PEDIDA" >/dev/null 2>&1; then
         morir "No existe la versión $VERSION_PEDIDA.
   Lista las disponibles: git ls-remote --tags $REPO_URL"
@@ -1080,7 +1966,11 @@ accion_actualizar() {
   if ! instalar_dependencias || ! verificar; then
     ACTUALIZANDO=0
     error "La nueva versión no supera las comprobaciones; vuelvo a la anterior."
-    git -C "$DESTINO" checkout --quiet --detach "$previo" || aviso "no se pudo volver al commit ${previo:0:7}"
+    if [ -n "$rama_previa" ]; then
+      git -C "$DESTINO" checkout --quiet -B "$rama_previa" "$previo" || aviso "no se pudo volver al commit ${previo:0:7}"
+    else
+      git -C "$DESTINO" checkout --quiet --detach "$previo" || aviso "no se pudo volver al commit ${previo:0:7}"
+    fi
     ( cd "$DESTINO" && npm ci --include=optional --no-audit --no-fund >/dev/null 2>&1 ) || true
     INSTALANDO=0
     error "Actualización revertida. Sigues en la versión ${previo:0:7} y tus datos están intactos."
@@ -1091,14 +1981,17 @@ accion_actualizar() {
   ACTUALIZANDO=0
   escribir_estado
   INSTALANDO=0
-  aviso "reinicia el bot para usar la versión nueva (Ctrl+C y npm start)."
+  instalar_lanzador
+  if [ "$GO" -eq 0 ] && [ "$SIN_ARRANQUE" -eq 0 ]; then
+    aviso "reinicia el bot para usar la versión nueva (Ctrl+C y npm start)."
+  fi
   resumen
 }
 
 accion_reparar() {
   exigir_destino_conocido repair
   exigir_proyecto
-  comprobar_node || exit 1
+  asegurar_entorno
   paso "Reparando dependencias"
   respaldar_datos "pre-reparacion"
   if [ -d "$DESTINO/node_modules" ]; then
@@ -1112,6 +2005,7 @@ accion_reparar() {
   fi
   escribir_estado
   INSTALANDO=0
+  instalar_lanzador
   bien "instalación reparada; tus sesiones y tu base siguen donde estaban"
 }
 
@@ -1126,7 +2020,7 @@ accion_verificar() {
       dato "fijada a la versión $etiqueta (no sigue la rama)"
     fi
     local esquema
-    esquema="$(version_esquema_db "$DESTINO/data/shin.db")"
+    esquema="$(version_esquema_db "${SHIN_DB_PATH:-$DESTINO/data/shin.db}")"
     [ -n "$esquema" ] && dato "base de datos en esquema v$esquema"
   fi
   if [ -f "$DESTINO/.shin-install" ]; then
@@ -1198,6 +2092,7 @@ accion_desinstalar() {
     while IFS= read -r r; do [ -n "$r" ] && cp -a "$DESTINO/$r" "$destino_datos/"; done < <(rutas_a_conservar)
     bien "datos guardados en $destino_datos"
   fi
+  limpiar_lanzador
   borrar_arbol "$DESTINO" "desinstalación"
   if [ "$PURGAR" -eq 1 ]; then
     printf '\n%s  Todo borrado.%s\n\n' "$C_GRIS" "$C_RESET"
@@ -1206,8 +2101,272 @@ accion_desinstalar() {
   fi
 }
 
+# ═══════════════════════════════════════════════════════════════════
+#  --doctor : la foto de todo, en texto que se puede pegar
+#
+#  Existe porque "no me funciona" no es una descripción. Esto imprime,
+#  de una vez y sin tocar nada, lo que hace falta para saber qué pasa:
+#  plataforma, versiones, de dónde salió Node, si los parches están,
+#  cuánto ocupa la sesión, espacio libre y qué dice systemd. No pide
+#  red (salvo SHIN_DOCTOR_RED=1) y no lee secretos: del `.env` solo
+#  dice si existe y cuántas claves tiene.
+# ═══════════════════════════════════════════════════════════════════
+accion_doctor() {
+  [ -n "${PLATAFORMA:-}" ] || detectar_plataforma
+  local fallos=0 avisos=0
+  printf '\n%s%s — diagnóstico%s\n' "$C_ROSA$C_NEG" "$NOMBRE" "$C_RESET"
+  printf '%s  pégalo tal cual si pides ayuda%s\n\n' "$C_GRIS" "$C_RESET"
+
+  seccion() { printf '\n%s[%s]%s\n' "$C_NEG" "$1" "$C_RESET"; }
+  ok()      { printf '  %s✓%s %s\n' "$C_VERDE" "$C_RESET" "$*"; }
+  mal()     { printf '  %s✗%s %s\n' "$C_ROJO" "$C_RESET" "$*"; fallos=$((fallos+1)); }
+  ojo()     { printf '  %s!%s %s\n' "$C_AMAR" "$C_RESET" "$*"; avisos=$((avisos+1)); }
+  neutro()  { printf '  %s·%s %s\n' "$C_GRIS" "$C_RESET" "$*"; }
+
+  seccion "equipo"
+  neutro "$(describir_plataforma)"
+  neutro "kernel $(uname -r 2>/dev/null || echo '?') · shell ${SHELL:-?}"
+  if [ -n "${TERMUX_VERSION:-}" ]; then neutro "Termux $TERMUX_VERSION"; fi
+  if [ -f /.dockerenv ]; then ojo "estás dentro de un contenedor: no hay systemd"; fi
+
+  seccion "node y npm"
+  if hay node; then
+    local v; v="$(node -p 'process.versions.node' 2>/dev/null || echo '?')"
+    if version_mayor_o_igual "$v" "$NODE_MINIMO"; then ok "node $v ($(command -v node))"
+    else mal "node $v es más viejo que $NODE_MINIMO ($(command -v node))"; fi
+  else mal "no hay node en el PATH"; fi
+  if hay npm; then ok "npm $(npm -v 2>/dev/null || echo '?')"
+  else mal "no hay npm"; fi
+  hay git && ok "git $(git --version 2>/dev/null | awk '{print $3}') ($(command -v git))" || ojo "no hay git"
+
+  seccion "instalación"
+  if [ -f "$DESTINO/package.json" ]; then
+    neutro "carpeta $DESTINO"
+    neutro "versión $(leer_version_paquete)"
+    if [ -f "$DESTINO/.shin-install" ]; then
+      ok "marcada como instalada"
+      neutro "$(tr '\n' ' ' < "$DESTINO/.shin-install" 2>/dev/null | cut -c1-160)"
+    else ojo "sin marca .shin-install (instalación a medias o hecha a mano)"; fi
+    [ -d "$DESTINO/.git" ] && neutro "git: $(git -C "$DESTINO" describe --tags --always 2>/dev/null)" \
+      || neutro "sin .git (instalación sin historial)"
+  else
+    mal "no hay instalación en $DESTINO"
+  fi
+
+  if [ -d "$DESTINO/node_modules" ]; then
+    if dependencias_sanas; then ok "módulos clave presentes"
+    else mal "faltan módulos clave (express, pino, baileys o sharp)"; fi
+    neutro "node_modules ocupa $(du -sh "$DESTINO/node_modules" 2>/dev/null | cut -f1)"
+  else mal "no hay node_modules (ejecuta: shin repair)"; fi
+
+  if [ -n "$(script_de_parches || true)" ]; then
+    if parches_aplicados; then ok "parches del conector aplicados ($(script_de_parches))"
+    else mal "los parches del conector NO están completos (ejecuta: shin repair)"; fi
+  else ojo "esta versión no trae script de parches"; fi
+
+  seccion "datos"
+  [ -f "$DESTINO/.env" ] \
+    && neutro ".env presente ($(grep -cE '^[A-Z_]+=' "$DESTINO/.env" 2>/dev/null || echo 0) claves; no se muestra su contenido)" \
+    || ojo "no hay .env (se crea solo desde .env.example al instalar)"
+  local r
+  for r in Sessions session data backups; do
+    [ -e "$DESTINO/$r" ] && neutro "$r: $(du -sh "$DESTINO/$r" 2>/dev/null | cut -f1)"
+  done
+  if [ -d "$DESTINO/backups" ]; then
+    neutro "respaldos: $(ls -1 "$DESTINO/backups" 2>/dev/null | wc -l | tr -d ' ')"
+  fi
+
+  seccion "sistema"
+  local libre ruta_df="$DESTINO"
+  [ -e "$ruta_df" ] || ruta_df="$(dirname "$DESTINO")"
+  libre="$(df -Pk "$ruta_df" 2>/dev/null | awk 'NR==2 {printf "%.1f GB", $4/1048576}')"
+  [ -n "$libre" ] && neutro "espacio libre donde vive la instalación: $libre"
+  if hay pgrep && pgrep -f "node .*index\\.js" >/dev/null 2>&1; then
+    ok "hay un proceso del bot corriendo ($(pgrep -fc "node .*index\\.js" 2>/dev/null || echo 1))"
+  else
+    neutro "el bot no está corriendo ahora mismo"
+  fi
+  if hay systemctl; then
+    local unidad
+    for unidad in "$PAQUETE" "$PAQUETE.service" "shin-md"; do
+      if systemctl list-unit-files 2>/dev/null | grep -q "^${unidad%.service}\.service"; then
+        neutro "servicio $unidad: $(systemctl is-active "${unidad%.service}" 2>/dev/null || echo '?')"
+        break
+      fi
+    done
+  fi
+
+  if [ "${SHIN_DOCTOR_RED:-0}" = "1" ]; then
+    seccion "red"
+    if hay curl; then
+      if curl -fsS -o /dev/null --connect-timeout 8 --max-time 15 "$REPO_URL_INFO" 2>/dev/null; then
+        ok "el repositorio responde"
+      else ojo "no pude llegar al repositorio (¿sin conexión?)"; fi
+    fi
+  fi
+
+  printf '\n'
+  if [ "$fallos" -eq 0 ]; then
+    if [ "$avisos" -eq 0 ]; then
+      printf '  %s✓ todo en orden%s\n\n' "$C_VERDE" "$C_RESET"
+    else
+      printf '  %s✓ sin fallos, %s aviso(s)%s\n\n' "$C_VERDE" "$avisos" "$C_RESET"
+    fi
+    return 0
+  fi
+  printf '  %s✗ %s fallo(s)%s — lo más probable: %s\n\n' "$C_ROJO" "$fallos" "$C_RESET" \
+    "$( [ -d "$DESTINO/node_modules" ] && echo 'shin repair' || echo 'volver a instalar con el comando de una línea' )"
+  return 1
+}
+
+# ═══════════════════════════════════════════════════════════════════
+#  --service : que el bot aguante un reinicio del VPS
+#
+#  En Termux esto no se usa (ahí manda Android), pero en un servidor la
+#  pregunta "¿y si se reinicia?" tiene una respuesta concreta: una unidad
+#  de systemd. Se genera aquí, con las rutas reales de esta instalación,
+#  y se puede ver antes de escribir nada (`--print`).
+# ═══════════════════════════════════════════════════════════════════
+unidad_systemd() {
+  local ambito="$1" node_bin ruta_servicio
+  node_bin="$(command -v node 2>/dev/null || echo /usr/bin/node)"
+  # El PATH de un servicio NO es el de tu terminal: si Node se instaló sin
+  # root en ~/.local/opt, systemd no lo encontraría y el servicio moriría
+  # con "node: not found". Se escribe el PATH exacto que funciona.
+  ruta_servicio="$(dirname "$node_bin"):$HOME/.local/bin:$HOME/.local/opt/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  cat <<UNIDAD
+[Unit]
+Description=$NOMBRE — bot de WhatsApp
+Documentation=$REPO_URL_INFO
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=$DESTINO
+ExecStart=$node_bin $DESTINO/index.js
+Restart=always
+RestartSec=5
+# Si se cae 5 veces en 5 minutos, se para en vez de reiniciar en bucle.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+Environment=NODE_ENV=production
+Environment=PATH=$ruta_servicio
+EnvironmentFile=-$DESTINO/.env
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=$PAQUETE
+# Endurecimiento: sin privilegios nuevos, /tmp propio y el sistema de
+# archivos del sistema de solo lectura. La carpeta del bot queda escribible.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=no
+# Lo que el bot necesita escribir de verdad: su carpeta, la caché de npm
+# (por si reinstalas dependencias desde el servicio) y su propia /tmp.
+ReadWritePaths=$DESTINO $HOME/.npm
+
+[Install]
+WantedBy=$( [ "$ambito" = "system" ] && echo multi-user.target || echo default.target )
+UNIDAD
+}
+
+accion_servicio() {
+  exigir_destino_conocido service
+  exigir_proyecto
+  # Un clon de desarrollo también es un proyecto válido, pero un servicio
+  # del sistema apuntando a una carpeta de trabajo (que se mueve, se borra
+  # o está a medio editar) es una mala idea. Solo instalaciones terminadas.
+  if [ ! -f "$DESTINO/.shin-install" ]; then
+    morir "$DESTINO no está marcada como instalación terminada (falta .shin-install).
+  Instálala primero con el comando de una línea y vuelve a pedir el servicio."
+  fi
+  detectar_plataforma
+
+  local ambito="${SERVICIO_AMBITO:-}"
+  if [ -z "$ambito" ]; then
+    if [ "$(id -u 2>/dev/null || echo 1)" = "0" ] || [ -n "${SUDO:-}" ]; then
+      ambito="system"
+    else
+      ambito="user"
+    fi
+  fi
+  local unidad
+  unidad="$(unidad_systemd "$ambito")"
+
+  if [ "$SERVICIO_PRINT" -eq 1 ] || ! hay systemctl; then
+    printf '\n%s  Unidad de systemd (%s)%s\n\n' "$C_NEG" "$ambito" "$C_RESET"
+    printf '%s\n' "$unidad"
+    if ! hay systemctl; then
+      printf '\n  %s!%s Este equipo no tiene systemd. Guarda el bloque de arriba en\n' "$C_AMAR" "$C_RESET" >&2
+      printf '     /etc/systemd/system/%s.service si lo hubiera, o usa pm2:\n' "$PAQUETE" >&2
+      printf '       npm install -g pm2 && pm2 start index.js --name %s && pm2 save\n\n' "$PAQUETE" >&2
+      return 0
+    fi
+    return 0
+  fi
+
+  local archivo como
+  if [ "$ambito" = "system" ]; then
+    archivo="/etc/systemd/system/$PAQUETE.service"
+    como="$SUDO"
+  else
+    archivo="$HOME/.config/systemd/user/$PAQUETE.service"
+    como=""
+  fi
+
+  if [ "$PEDIR_CONFIRMACION" -eq 1 ]; then
+    printf '  %s?%s Voy a escribir %s y activar el servicio. ¿Sigo? [S/n] ' "$C_AMAR" "$C_RESET" "$archivo" >&2
+    local resp_svc=""; read -r resp_svc || resp_svc="n"
+    case "$resp_svc" in
+      ""|s|S|si|sí|SI|Sí|y|Y) ;;
+      *) printf '\n  %scancelado; no escribí nada.%s\n\n' "$C_GRIS" "$C_RESET" >&2; return 1 ;;
+    esac
+  fi
+
+  # Se escribe en un temporal y se mueve con `mv`: si algo falla a mitad, no
+  # queda una unidad a medio escribir que systemd intentaría cargar.
+  local tmp="$archivo.tmp.$$" carpeta
+  carpeta="$(dirname "$archivo")"
+  if [ -n "$como" ] && [ "$(id -u 2>/dev/null || echo 1)" != "0" ]; then
+    $como mkdir -p "$carpeta" || morir "No pude crear $carpeta (¿hacen falta permisos?)."
+    printf '%s\n' "$unidad" | $como tee "$tmp" >/dev/null 2>&1 \
+      || { $como rm -f "$tmp" 2>/dev/null || true; morir "No pude escribir en $archivo (¿hacen falta permisos?)."; }
+    $como mv -f "$tmp" "$archivo" || { $como rm -f "$tmp" 2>/dev/null || true; morir "No pude dejar la unidad en $archivo."; }
+    $como systemctl daemon-reload || true
+    $como systemctl enable --now "$PAQUETE" \
+      || morir "La unidad está escrita, pero no arrancó. Mira: journalctl -u $PAQUETE -n 50"
+  else
+    mkdir -p "$carpeta" || morir "No pude crear $carpeta."
+    printf '%s\n' "$unidad" > "$tmp" || { rm -f -- "$tmp"; morir "No pude escribir en $archivo."; }
+    mv -f "$tmp" "$archivo" || { rm -f -- "$tmp"; morir "No pude dejar la unidad en $archivo."; }
+    if [ "$ambito" = "system" ]; then
+      systemctl daemon-reload || true
+      systemctl enable --now "$PAQUETE" \
+        || morir "La unidad está escrita, pero no arrancó. Mira: journalctl -u $PAQUETE -n 50"
+    else
+      systemctl --user daemon-reload || true
+      systemctl --user enable --now "$PAQUETE" \
+        || morir "La unidad está escrita, pero no arrancó. Mira: journalctl --user -u $PAQUETE -n 50"
+      printf '\n'
+      aviso "los servicios de usuario se paran al cerrar la sesión."
+      # `$USER` no existe en un contenedor ni en un servicio de systemd: con
+      # `set -u` eso mata el instalador al final, justo cuando ya está todo
+      # hecho. Se cae a `id -un`, que siempre contesta.
+      dato "para que siga tras el logout:  sudo loginctl enable-linger ${USER:-$(id -un 2>/dev/null || echo TU_USUARIO)}"
+    fi
+  fi
+  bien "servicio $PAQUETE activo (ámbito $ambito)"
+  dato "ver qué dice:      journalctl -u $PAQUETE -f   (o --user)"
+  dato "pararlo:           systemctl disable --now $PAQUETE"
+  printf '\n'
+}
+
 ayuda() {
-  sed -n '5,30p' "$0" | sed 's/^# \{0,1\}//'
+  # La ayuda es la cabecera de este mismo archivo. Se busca por marcadores y no
+  # por número de línea: con rangos fijos, añadir una opción dejaba la mitad de
+  # la ayuda fuera (y nadie lo nota hasta que alguien la pide).
+  sed -n '/^#  Uso:/,/^# ═/p' "$0" | sed 's/^# \{0,1\}//' | sed '$d'
 }
 
 # ───────────────────────── argumentos ─────────────────────────
@@ -1227,6 +2386,16 @@ while [ $# -gt 0 ]; do
       [ $# -ge 2 ] || morir "--version necesita una etiqueta (por ejemplo v3.2.1)"
       VERSION_PEDIDA="$2"; shift ;;
     --no-boost)                BOOST=0 ;;
+    --auto|--automatico)       ACCION="auto" ;;
+    --run|--arrancar)          ACCION="run" ;;
+    --doctor|--diagnostico)    ACCION="doctor" ;;
+    --service|--servicio)      ACCION="service" ;;
+    --print|--imprimir)        SERVICIO_PRINT=1 ;;
+    --user|--usuario)          SERVICIO_AMBITO="user" ;;
+    --system|--sistema)        SERVICIO_AMBITO="system" ;;
+    --no-arrancar|--no-start)  SIN_ARRANQUE=1 ;;
+    --go|--iniciar)            GO=1 ;;
+    --code|--qr)               ARRANQUE_ARGS+=("--code") ;;  # --qr se acepta, pero ya no existe
     --dir)
       [ $# -ge 2 ] || morir "--dir necesita una ruta"
       DESTINO="$2"; DESTINO_EXPLICITO=1; shift ;;
@@ -1254,6 +2423,10 @@ case "$ACCION" in
   repair)    accion_reparar ;;
   verify)    accion_verificar ;;
   uninstall) accion_desinstalar ;;
+  auto)      accion_auto ;;
+  run)       accion_arrancar ;;
+  doctor)    accion_doctor ;;
+  service)   accion_servicio ;;
   "")
     if estado_instalado; then
       paso "Ya hay una instalación en $DESTINO"
@@ -1263,3 +2436,11 @@ case "$ACCION" in
     fi
     ;;
 esac
+
+# --go (y --auto, que lo implica) arrancan el bot al terminar. Va con `if` y no
+# con `&&` a propósito: como última orden del script, un `&&` que no se cumple
+# dejaría el instalador saliendo con código 1 sin haber fallado nada.
+if [ "$SIN_ARRANQUE" -eq 1 ]; then GO=0; fi
+if [ "$GO" -eq 1 ]; then
+  arrancar_bot
+fi

@@ -19,6 +19,8 @@ const BANNER_PATHS = [
   path.resolve(__dirname, "../../assets/imagenes/levi-banner.png"),
   path.resolve(__dirname, "../../assets/imagenes/levi-menu-1.jpg"),
   path.resolve(__dirname, "../../assets/banner-default.png"),
+  path.resolve(__dirname, "../../assets/bocchi-banner.png"),
+  path.resolve(__dirname, "../../media/menu.jpg"),
 ].filter(Boolean);
 
 let _bannerCache = null;
@@ -98,7 +100,7 @@ export default {
         showcaseText += `╰─────────────────────────⬣\n\n`;
       }
 
-      showcaseText += `_Usa \`.menu\` para explorar los 201+ comandos disponibles._`;
+      showcaseText += `_Usa \`.menu\` para explorar los 215+ comandos disponibles._`;
 
       if (banner) {
         await sock.sendMessage(

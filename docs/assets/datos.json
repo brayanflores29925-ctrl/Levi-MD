@@ -1,0 +1,13 @@
+{
+  "comandos": 218,
+  "nombres": 770,
+  "alias": 552,
+  "categorias": 18,
+  "pruebas": 492,
+  "pruebasTotal": 576,
+  "archivos": 64,
+  "version": "3.7.9",
+  "node": "22.5",
+  "baileys": "7.0.0-rc14",
+  "licencia": "AGPL-3.0-only"
+}
