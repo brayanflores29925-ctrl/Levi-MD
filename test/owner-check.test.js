@@ -290,13 +290,12 @@ test(".del borra mensajes ajenos en grupo @lid y mensajes propios del bot", asyn
     isOwner: false,
   });
 
-  assert.equal(enviados.length, 2);
+  assert.equal(enviados.length, 1);
   assert.deepEqual(enviados[0].payload.delete, {
     remoteJid: groupId,
     fromMe: false,
     id: "MSG_OBJETIVO_1",
     participant: targetLid,
   });
-  assert.equal(enviados[1].payload.delete.id, "CMD_DEL_1");
   lid.reiniciar();
 });

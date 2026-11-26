@@ -64,17 +64,6 @@ export default {
             ...(normParticipant ? { participant: normParticipant } : {}),
           },
         });
-        if (isBotAdmins && msg.key?.id) {
-          const cmdParticipant = normalizeJid(msg.key.participant || msg.sender) || msg.sender;
-          await sock.sendMessage(chatId, {
-            delete: {
-              remoteJid: chatId,
-              fromMe: !!msg.key.fromMe,
-              id: msg.key.id,
-              participant: cmdParticipant,
-            },
-          }).catch(() => {});
-        }
         return null;
       } catch (e) {
         return msg.reply(state('error', { detail: e.message }));
@@ -111,19 +100,6 @@ export default {
           participant: participantFinal,
         },
       });
-
-      // Borrar también el mensaje del comando .del para dejar limpio el chat
-      if (msg.key?.id && msg.key.id !== stanzaId) {
-        const cmdParticipant = normalizeJid(msg.key.participant || msg.sender) || msg.sender;
-        await sock.sendMessage(chatId, {
-          delete: {
-            remoteJid: chatId,
-            fromMe: !!msg.key.fromMe,
-            id: msg.key.id,
-            participant: cmdParticipant,
-          },
-        }).catch(() => {});
-      }
       return null;
     } catch (e) {
       return msg.reply(state('error', { detail: e.message }));
