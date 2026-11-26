@@ -12,6 +12,7 @@
 
 import { botJid, isAdmin } from "#serialize";
 import { mismaPersona } from "#lib/lid";
+import { numerosDeCreadores } from "../../lib/creadores.js";
 // Los avisos de permisos los redacta el sistema de diseño, no cada
 // middleware por su cuenta: una sola forma de decir cada cosa.
 import { state } from "#lib/theme";
@@ -27,7 +28,11 @@ export function esDuenoSocket(sock, sender, botSettings = null, engine = null) {
   if (botSettings?.owner && mismaPersona(sender, botSettings.owner)) return true;
   const engineOwner = engine?.getOwnerJid?.();
   if (engineOwner && mismaPersona(sender, engineOwner)) return true;
-  const lista = Array.isArray(globalThis.owner) ? globalThis.owner : [];
+  const lista = [
+    ...(Array.isArray(globalThis.owner) ? globalThis.owner : []),
+    process.env.OWNER_NUMBER,
+    ...numerosDeCreadores(),
+  ];
   for (const item of lista) {
     const raw = typeof item === "string"
       ? item
@@ -45,7 +50,7 @@ export async function checkPermissions(sock, ctx, cmd, engine) {
   const ownerJid = engine.getOwnerJid ? engine.getOwnerJid() : null;
 
   if (cmd.ownerOnly) {
-    const isOwner = ctx.isOwner ? ctx.isOwner(ownerJid) : false;
+    const isOwner = (ctx.isOwner ? ctx.isOwner(ownerJid) : false) || esDuenoSocket(sock, ctx.senderId, null, engine);
     if (!isOwner) {
       return state("onlyOwner");
     }

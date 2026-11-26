@@ -27,6 +27,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { numerosDeCreadores } from "./creadores.js";
+import * as lid from "./lid.js";
 
 /** "52155:12@s.whatsapp.net" → "52155" (solo dígitos, sin device ni dominio) */
 export function soloDigitos(valor = "") {
@@ -38,7 +39,7 @@ export function soloDigitos(valor = "") {
 
 /** ¿El id es un LID (el id interno nuevo de WhatsApp)? */
 export function esLid(valor = "") {
-  return /@lid$/i.test(String(valor || ""));
+  return /@(hosted\.)?lid$/i.test(String(valor || ""));
 }
 
 /**
@@ -117,10 +118,17 @@ export function esElOwner({ msg = null, sock = null, config = null, senderId = "
     key.remoteJid ||
     "";
 
-  // Si WhatsApp nos dio el número real aparte (senderPn), lo usamos como
-  // candidato adicional: es la única forma de reconocer a alguien que
-  // llegó como @lid en versiones de Baileys sin tabla LID→número.
-  const pegado = key.senderPn || key.participantPn || msg?.senderPn || "";
+  // Si WhatsApp nos dio el número real aparte (senderPn / remoteJidAlt /
+  // participantAlt), lo usamos como candidato adicional: es la forma directa
+  // de reconocer a alguien que llegó como @lid en Baileys 6.x y 7.x.
+  const candidatosPegados = [
+    key.senderPn,
+    key.participantPn,
+    key.remoteJidAlt,
+    key.participantAlt,
+    msg?.senderPn,
+  ].filter((v) => v && !esLid(v));
+  const pegado = candidatosPegados[0] || "";
   const owners = idsDelOwner({ sock, config, extra });
 
   if (!crudo) return { ok: false, motivo: "sin remitente", sender: "", owners };
@@ -131,7 +139,7 @@ export function esElOwner({ msg = null, sock = null, config = null, senderId = "
   if (!owners.length) return { ok: false, motivo: "OWNER_NUMBER vacío en el .env", sender: crudo, owners };
 
   for (const owner of owners) {
-    if (soloDigitos(owner) && mismoUsuario(crudo, owner)) {
+    if (!esLid(crudo) && soloDigitos(owner) && mismoUsuario(crudo, owner)) {
       return { ok: true, motivo: "número coincide", sender: crudo, owners };
     }
     if (pegado && mismoUsuario(pegado, owner)) {
@@ -139,6 +147,9 @@ export function esElOwner({ msg = null, sock = null, config = null, senderId = "
     }
     if (esLid(owner) && String(owner) === String(crudo)) {
       return { ok: true, motivo: "LID coincide", sender: crudo, owners };
+    }
+    if (esLid(crudo) && soloDigitos(owner) && lid.mismaPersona(crudo, soloDigitos(owner) + "@s.whatsapp.net")) {
+      return { ok: true, motivo: "pareja @lid aprendida coincide", sender: crudo, owners };
     }
   }
 

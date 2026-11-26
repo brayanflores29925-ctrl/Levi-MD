@@ -476,11 +476,15 @@ export function connectSocket(engine, opts) {
           // La pareja LID ↔ teléfono se aprende ANTES de decidir si el
           // mensaje es un comando: un "hola", un sticker o un mensaje sin
           // texto también sirven para no partir la cuenta del usuario.
-          lid.aprenderDeMensaje(msg.key);
-          // Si el mensaje solo trajo una cara (típico: chat direccionado
-          // por LID), el conector suele saber la otra. Se pregunta sin
-          // bloquear: LID → teléfono es una consulta local.
-          lid.refrescarDesdeConector(msg.key);
+          const parejaMsg = lid.aprenderDeMensaje(msg.key);
+          // Si el mensaje solo trajo un @lid y aún no sabemos su teléfono,
+          // consultamos el mapa local de auth.db ANTES de serializar para que
+          // el dueño/admin sea reconocido desde el primer mensaje sin carrera.
+          if (parejaMsg.lid && !parejaMsg.pn && !lid.pnDeLid(parejaMsg.lid) && lid.conectorActivo()) {
+            await lid.resolverConector(parejaMsg.lid).catch(() => {});
+          } else {
+            lid.refrescarDesdeConector(msg.key);
+          }
 
           if (msg?.key?.id) {
             msgStore.set(msg.key.remoteJid + ":" + msg.key.id, msg.message);
@@ -541,6 +545,33 @@ export function connectSocket(engine, opts) {
 
         // Resolver metadata del canal oficial en background
         resolveChannel(s, db).catch(() => {});
+
+        // Pre-aprender el @lid del dueño al conectar: WhatsApp solo permite
+        // consultar teléfono → LID (no LID → teléfono). Así aunque el dueño
+        // escriba desde un chat privado @lid sin senderPn/remoteJidAlt, el
+        // bot ya conoce su pareja LID ↔ teléfono desde el arranque.
+        const ownerLidTimer = setTimeout(async () => {
+          try {
+            const candidatos = new Set([
+              engine.getOwnerJid?.(),
+              process.env.OWNER_NUMBER,
+              ...(Array.isArray(globalThis.owner) ? globalThis.owner : []),
+            ].filter(Boolean));
+            for (const raw of candidatos) {
+              const limpio = String(raw).replace(/\D/g, "");
+              if (limpio.length < 8) continue;
+              const pnJid = limpio + "@s.whatsapp.net";
+              if (lid.lidDePn(pnJid)) continue;
+              const lidJid = await lid.resolverConector(pnJid, { red: true });
+              if (!lidJid && typeof s.onWhatsApp === "function") {
+                const info = await s.onWhatsApp(pnJid).catch(() => null);
+                const item = Array.isArray(info) ? info[0] : null;
+                if (item?.lid) lid.aprender(item.lid, item.jid || pnJid);
+              }
+            }
+          } catch {}
+        }, 800);
+        if (typeof ownerLidTimer.unref === "function") ownerLidTimer.unref();
 
         // B2.2: contador de grupos al conectar para /health.
         const groupsTimer = setTimeout(async () => {

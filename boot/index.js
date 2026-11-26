@@ -9,6 +9,7 @@ import { estadoSesion, hayTerminalDetras, leerDeTerminal, planDeVinculacion } fr
 import * as ui from "../src/services/consola.js";
 import { panelListo } from "../src/services/consola.js";
 import { instalarAPIs } from "../src/lib/apis.js";
+import { numerosDeCreadores } from "../src/lib/creadores.js";
 // ═══════════════════════════════════════════════════════════════════
 //  boot/index.js — Punto de arranque estilo Ginko-MD
 //  Uso: node index.js [--code | --menu]
@@ -374,7 +375,16 @@ async function main() {
 
   // (Antes: si OWNER_NUMBER no existía, `undefined + "@s.whatsapp.net"`
   //  dejaba owner_jid = "undefined@s.whatsapp.net" — owner fantasma.)
-  const ownerNum = (process.env.OWNER_NUMBER || "").replace(/\D/g, "");
+  // Si no se creó el .env al clonar o quedó vacío, usar el owner guardado
+  // en la base o el número principal de Levi-MD (50494874330).
+  const savedOwnerNum = String(db.settings.get("owner_jid") || "").replace(/\D/g, "");
+  const ownerNum = (process.env.OWNER_NUMBER || savedOwnerNum || "50494874330").replace(/\D/g, "");
+  if (!process.env.OWNER_NUMBER && ownerNum) {
+    process.env.OWNER_NUMBER = ownerNum;
+  }
+  if (!process.env.OWNER_NAME) {
+    process.env.OWNER_NAME = "Brayan";
+  }
   // 🇲🇽 México: WhatsApp conserva en los JID el formato viejo 52+1+número
   //  (13 dígitos). Si se configura el móvil como 52… (12 dígitos) el bot
   //  NUNCA reconocería a su dueño: el JID real lleva el 1. Generamos la
@@ -389,6 +399,7 @@ async function main() {
     const ownerJidReal = (ownerAlias || ownerNum) + "@s.whatsapp.net";
     db.settings.set("owner_jid", ownerJidReal);
     engine.setOwnerJid(ownerJidReal);
+    engine.setOwnerName?.(process.env.OWNER_NAME || "Brayan");
     if (ownerAlias) log.info("Owner móvil MX: acepto «" + ownerNum + "» y su forma en JID «" + ownerAlias + "».");
   }
 
@@ -396,17 +407,17 @@ async function main() {
   // 21 comandos portados (self, kick, setprefix, setowner...) leen
   // global.owner y global.mess. Sin definirlos, el primer uso lanza
   // TypeError en runtime (global.owner.map sobre undefined).
-  globalThis.owner = ownerNum ? Array.from(new Set([ownerNum, ownerAlias].filter(Boolean))) : [];
+  globalThis.owner = Array.from(new Set([ownerNum, ownerAlias, ...numerosDeCreadores()].filter(Boolean)));
   globalThis.links = {
     channel: process.env.CHANNEL_LINK || "https://whatsapp.com/channel/0029VbDVFpSGJP89hfZUe522",
     channelCode: process.env.CHANNEL_CODE || "0029VbDVFpSGJP89hfZUe522",
-    channelName: process.env.CHANNEL_NAME || "Shin-MD Official Channel",
+    channelName: process.env.CHANNEL_NAME || "Levi-MD · Canal oficial",
     instagram: process.env.INSTAGRAM_LINK || "https://www.instagram.com/__ikg.05",
     github: "https://github.com/riokuroxi-svg/Shin-MD",
     support: process.env.SUPPORT_LINK || "",
   };
   globalThis.multiplier = 2;
-  globalThis.botname = "Shin-MD";
+  globalThis.botname = "Levi-MD";
   globalThis.conns = [];
   globalThis.mess = {
     default: "⚠️ Comando no disponible.",

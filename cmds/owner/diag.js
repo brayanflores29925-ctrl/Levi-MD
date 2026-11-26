@@ -32,10 +32,17 @@ export default {
     usage: ".diag  ·  .diag botones  ·  .diag motor",
     async run({ msg, sock, args }) {
         const key = msg.key || {};
-        const quien = esElOwner({ msg, sock });
         const idBot = sock?.user?.id || "";
         const config = db.getSettings(idBot.split(":")[0] + "@s.whatsapp.net") || {};
+        const quien = esElOwner({ msg, sock, config });
         const nodoBot = process.env.WA_BOT_NODE === "1";
+        const pegadoDiag =
+            key.senderPn ||
+            key.participantPn ||
+            key.remoteJidAlt ||
+            key.participantAlt ||
+            msg.senderPn ||
+            "no vino";
 
         const lineas = [
             "🔎 *Diagnóstico de identidad*",
@@ -43,10 +50,10 @@ export default {
             `▸ Remitente: \`${msg.sender || "(no llegó)"}\``,
             `▸ Dígitos: \`${soloDigitos(msg.sender) || "-"}\``,
             `▸ ¿Es @lid?: ${esLid(msg.sender) ? "sí (id interno nuevo)" : "no"}`,
-            `▸ Número pegado (senderPn): \`${key.senderPn || key.participantPn || "no vino"}\``,
+            `▸ Número pegado (senderPn): \`${pegadoDiag}\``,
             `▸ Chat: ${msg.isGroup ? "grupo" : "privado"}`,
             "",
-            `▸ Owner guardado: \`${ocultar(config.owner || "")}\``,
+            `▸ Owner guardado: \`${ocultar(config.owner || process.env.OWNER_NUMBER || "")}\``,
             `▸ global.owner: ${(Array.isArray(globalThis.owner) ? globalThis.owner : []).map((n) => "`" + ocultar(n) + "`").join(", ") || "(vacío)"}`,
             `▸ Yo soy el dueño: *${quien.ok ? "SÍ" : "NO"}* — ${quien.motivo}`,
             "",

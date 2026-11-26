@@ -196,9 +196,11 @@ export default {
     }
 
     // ── Ficha de Usuario y Estado del Bot ──
-    const userRole = ctx.isOwner ? "👑 Creador / Owner" : (ctx.isAdmin ? "🛡️ Administrador" : "👤 Usuario");
+    const ownerJid = engine?.getOwnerJid?.() || process.env.OWNER_NUMBER || "";
+    const soyOwner = typeof ctx.isOwner === "function" ? ctx.isOwner(ownerJid) : !!ctx.isOwner;
+    const userRole = soyOwner ? "👑 Creador / Owner" : (ctx.isAdmin ? "🛡️ Administrador" : "👤 Usuario");
     const pushName = ctx.pushName || "Usuario";
-    const senderNumber = (ctx.senderId || "").split("@")[0].split(":")[0];
+    const senderNumber = (ctx.senderPn || ctx.senderId || "").split("@")[0].split(":")[0];
 
     let headerText = `${greeting}\n\n`;
     headerText += `      *${pushName}*\n\n`;

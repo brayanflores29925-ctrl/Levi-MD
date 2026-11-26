@@ -5,6 +5,7 @@
  * Parte de Shin-MD. Mantener este header es obligatorio por AGPL.
  */
 import { mismaPersona } from "#lib/lid";
+import { esDuenoSocket } from "#permissions";
 import db from '../../src/services/ginko-db.js';
 import { generateProfileCard } from '../../src/lib/cardGenerator.js';
 import { enviar } from "#motor/enviar";
@@ -47,11 +48,12 @@ export default {
     txt += `│ ◈ *Comandos* : *${(user.usedcommands || 0).toLocaleString()}*\n`;
     txt += `╰┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈╯`;
 
+    const esOwnerTarget = Boolean(user.isOwner || esDuenoSocket(sock, who));
     let cardBuffer = null;
     try {
       cardBuffer = await generateProfileCard({
         name: user.name || msg.pushName || "Usuario",
-        rank: user.isOwner ? "Owner" : (user.isPremium ? "Premium" : "Miembro"),
+        rank: esOwnerTarget ? "Owner" : (user.isPremium ? "Premium" : "Miembro"),
         level: user.level || 0,
         exp: progresoActual,
         maxExp: xp || 100,

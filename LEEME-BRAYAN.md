@@ -66,7 +66,7 @@ Abre `.env` con cualquier editor (`nano .env`) y cambia **solo esto**:
 
 ```env
 # TU número personal (no el del bot), solo dígitos, sin + ni espacios
-OWNER_NUMBER=50493482934
+OWNER_NUMBER=50494874330
 
 # Tu nombre, para el comando .owner
 OWNER_NAME=Brayan
@@ -74,7 +74,7 @@ OWNER_NAME=Brayan
 
 Reglas del número:
 
-- Solo dígitos. `+504 9348 2934` se escribe `50493482934`.
+- Solo dígitos. `+504 9487 4330` se escribe `50494874330`.
 - Honduras (504) usa el número tal cual, sin prefijos extra.
 - Si algún día el bot te dice que no eres el dueño, manda `.diag` (paso 6).
 
@@ -148,8 +148,8 @@ Mándale al bot:
 Te contesta con algo así:
 
 ```
-▸ Remitente: 50493482934:12@s.whatsapp.net
-▸ Owner guardado: 504•••••••34
+▸ Remitente: 50494874330:12@s.whatsapp.net
+▸ Owner guardado: 504••••••30
 ▸ Yo soy el dueño: SÍ — número coincide
 ```
 

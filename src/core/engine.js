@@ -19,6 +19,7 @@ export function createEngine(opts) {
   let sock = null;
   let bootTime = Date.now();
   let ownerJid = null;
+  let ownerName = null;
   let groupCount = 0;
   const health = createHealthMonitor();
   // opts.throttler: perfil del número (B2.1) — el boot decide si el
@@ -48,6 +49,8 @@ export function createEngine(opts) {
   function setSock(s) { sock = s; }
   function setOwnerJid(j) { ownerJid = j; }
   function getOwnerJid() { return ownerJid; }
+  function setOwnerName(n) { ownerName = n; }
+  function getOwnerName() { return ownerName || process.env.OWNER_NAME || "El Owner"; }
   function setGroupCount(n) { groupCount = n; }
   function getGroupCount() { return groupCount; }
   function getHealth() { return health; }
@@ -109,7 +112,7 @@ export function createEngine(opts) {
 
   return {
     getState, getStateName, getSock, setSock,
-    setOwnerJid, getOwnerJid,
+    setOwnerJid, getOwnerJid, setOwnerName, getOwnerName,
     setGroupCount, getGroupCount,
     getHealth, getThrottler, getSendQueue, getRitmo, getSesion, getUptime, resetBootTime,
     transit, emit, on, once, onShutdown, shutdown, LIFECYCLE,

@@ -6,6 +6,7 @@
  */
 import { botJid } from "#serialize";
 import { mismaPersona } from "#lib/lid";
+import { esDuenoSocket } from "#permissions";
 import db from '../../src/services/ginko-db.js';
 import { generateProfileCard } from '../../src/lib/cardGenerator.js';
 import { enviar } from "#motor/enviar";
@@ -78,7 +79,8 @@ export default {
       const progreso = Math.max(0, exp - min);
       const porcentaje = xp > 0 ? Math.min(100, Math.floor((progreso / xp) * 100)) : 0;
 
-      const userRank = user2.isOwner ? "Owner" : (user2.isPremium ? "Premium" : "Miembro");
+      const esOwnerTarget = Boolean(user2.isOwner || esDuenoSocket(sock, userId, settings));
+      const userRank = esOwnerTarget ? "Owner" : (user2.isPremium ? "Premium" : "Miembro");
 
       let profileText = `╭┈┈⫹⫺ *PERFIL DE USUARIO* ⫹⫺┈┈╮\n`;
       profileText += `│ ◈ *Nombre* : *${name}*\n`;

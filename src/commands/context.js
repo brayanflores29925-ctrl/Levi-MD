@@ -204,7 +204,7 @@ export async function resolveGroupFacts(sock, ctx, engine) {
   let groupMetadata = null;
 
   const ownerJid = engine?.getOwnerJid?.();
-  if (ownerJid) isOwner = !!ctx.isOwner?.(ownerJid) || lid.mismaPersona(ctx.senderId, ownerJid);
+  isOwner = !!ctx.isOwner?.(ownerJid) || (ownerJid ? lid.mismaPersona(ctx.senderId, ownerJid) : false);
 
   if (ctx.isGroup) {
     isAdmins = await isAdmin(sock, ctx.chatId, ctx.senderId);

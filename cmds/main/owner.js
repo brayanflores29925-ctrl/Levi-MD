@@ -70,12 +70,13 @@ export default {
   adminOnly: false,
 
   async handler(sock, ctx, engine) {
-    const ownerJid = engine?.getOwnerJid?.() || "";
+    const ownerJid = engine?.getOwnerJid?.() || process.env.OWNER_NUMBER || "";
     const digits = ownerDigits(ownerJid);
     const ownerNum = digits ? "+" + digits : "";
+    const soyOwner = typeof ctx?.isOwner === "function" ? ctx.isOwner(ownerJid) : !!ctx?.isOwner;
     const ownerName =
-      (ctx?.senderId && ctx?.isOwner && ctx?.full?.pushName) ? ctx.full.pushName
-        : (engine?.getOwnerName ? engine.getOwnerName() : "El Owner");
+      (ctx?.senderId && soyOwner && ctx?.full?.pushName) ? ctx.full.pushName
+        : (engine?.getOwnerName ? engine.getOwnerName() : (process.env.OWNER_NAME || "El Owner"));
 
     const cuerpo = boxMain("Owner", [
       `👑 *${ownerName}*`,

@@ -102,3 +102,60 @@ test("el nodo `bot` sí va con WA_BOT_NODE=1 en privado", () => {
   if (previo === undefined) delete process.env.WA_BOT_NODE;
   else process.env.WA_BOT_NODE = previo;
 });
+
+test("reconoce al owner 50494874330 por teléfono, :device, remoteJidAlt (Baileys 7) y pareja @lid aprendida", async () => {
+  const lid = await import("../src/lib/lid.js");
+  const { serializeMessage } = await import("../src/serialize.js");
+  const { checkPermissions, esDuenoSocket } = await import("../src/commands/middleware/permissions.js");
+  const { buildCommandContext } = await import("../src/commands/context.js");
+
+  const previo = process.env.OWNER_NUMBER;
+  process.env.OWNER_NUMBER = "50494874330";
+  const engine = { getOwnerJid: () => "50494874330@s.whatsapp.net" };
+  const botSock = { user: { id: "50400000000:1@s.whatsapp.net" } };
+
+  try {
+    lid.reiniciar();
+
+    // 1) Con sufijo de dispositivo
+    assert.equal(
+      esElOwner({ msg: { sender: "50494874330:14@s.whatsapp.net", key: {} }, sock: botSock }).ok,
+      true,
+    );
+
+    // 2) Como @lid con remoteJidAlt (esquema Baileys 7)
+    assert.equal(
+      esElOwner({
+        msg: { sender: "77665544332211@lid", key: { remoteJid: "77665544332211@lid", remoteJidAlt: "50494874330@s.whatsapp.net" } },
+        sock: botSock,
+      }).ok,
+      true,
+    );
+
+    // 3) Como @lid puro una vez aprendida la pareja LID ↔ teléfono
+    lid.aprender("77665544332211@lid", "50494874330@s.whatsapp.net");
+    const rLid = esElOwner({
+      msg: { sender: "77665544332211@lid", key: { remoteJid: "77665544332211@lid" } },
+      sock: botSock,
+    });
+    assert.equal(rLid.ok, true);
+
+    // 4) Pipeline completo: serializeMessage + checkPermissions + esDuenoSocket + buildCommandContext
+    const ctx = serializeMessage({
+      key: { remoteJid: "77665544332211@lid", fromMe: false, id: "MSG1" },
+      message: { conversation: ".restart" },
+      pushName: "Brayan",
+    }, botSock);
+    assert.equal(ctx.isOwner(engine.getOwnerJid()), true);
+    assert.equal(await checkPermissions(botSock, ctx, { ownerOnly: true }, engine), null);
+    assert.equal(esDuenoSocket(botSock, ctx.senderId, null, engine), true);
+    const built = await buildCommandContext(botSock, ctx, engine);
+    assert.equal(built.isOwner, true);
+    assert.equal(built.msg.isOwner, true);
+  } finally {
+    lid.reiniciar();
+    const env = process.env;
+    if (previo === undefined) delete env.OWNER_NUMBER;
+    else env.OWNER_NUMBER = previo;
+  }
+});

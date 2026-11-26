@@ -20,6 +20,7 @@ import {
   esLid as isLidJid,
 } from "./lib/jid.js";
 import * as lid from "./lib/lid.js";
+import { numerosDeCreadores } from "./lib/creadores.js";
 
 // Las utilidades viven en #lib/jid para que la capa LID pueda usarlas sin
 // crear un ciclo de imports. Se re-exportan con los mismos nombres de
@@ -165,21 +166,23 @@ export function serializeMessage(msg, sock) {
     };
   }
 
-  // Dueño: se compara por número (con la regla mexicana 521 = 52) y por la
-  // pareja LID ↔ teléfono. Antes, si el dueño escribía desde un chat LID y
-  // solo se conocía ese identificador, el bot le contestaba «solo el dueño».
+  // Dueño: se compara por número (con la regla mexicana 521 = 52), por la
+  // lista completa de dueños/creadores (.env y data/creadores.json) y por la
+  // pareja LID ↔ teléfono.
   const isOwner = (ownerJid) => {
     const sUser = userPart(senderId);
     if (!sUser) return false;
-    if (ownerJid && userPart(ownerJid) === sUser) return true;
-    if (Array.isArray(globalThis.owner)) {
-      if (globalThis.owner.some(num => userPart(num) === sUser)) return true;
+    const candidatos = [
+      ownerJid,
+      process.env.OWNER_NUMBER,
+      ...(Array.isArray(globalThis.owner) ? globalThis.owner : []),
+      ...numerosDeCreadores(),
+    ].filter(Boolean);
+    if (!isLidJid(senderId)) {
+      if (candidatos.some(num => userPart(num) === sUser)) return true;
     }
-    if (ownerJid && lid.mismaPersona(senderId, ownerJid)) return true;
-    if (Array.isArray(globalThis.owner)) {
-      return globalThis.owner.some(num => lid.mismaPersona(senderId, String(num)));
-    }
-    return normalizeJid(senderId) === normalizeJid(ownerJid);
+    if (candidatos.some(num => lid.mismaPersona(senderId, String(num)))) return true;
+    return ownerJid ? normalizeJid(senderId) === normalizeJid(ownerJid) : false;
   };
 
   const rawTs = typeof msg.messageTimestamp === "object" && msg.messageTimestamp !== null
