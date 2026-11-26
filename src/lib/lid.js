@@ -445,12 +445,16 @@ export function aprenderDeGrupo(meta) {
   if (metasVistas.has(meta)) return 0;
   metasVistas.add(meta);
   let nuevas = aprenderDeParticipantes(meta.participants);
-  const formas = [meta.owner, meta.ownerJid, meta.subjectOwnerJid]
-    .map((x) => normalizeJid(x || ""))
-    .filter(Boolean);
-  const elLid = formas.find((x) => esLid(x));
-  const elPn = formas.find((x) => esTelefono(x));
-  if (elLid && elPn && aprender(elLid, elPn)) nuevas++;
+  const pares = [
+    [meta.owner, meta.ownerPn || meta.ownerJid],
+    [meta.subjectOwner, meta.subjectOwnerPn || meta.subjectOwnerJid],
+  ];
+  for (const par of pares) {
+    const formas = par.map((x) => normalizeJid(x || "")).filter(Boolean);
+    const elLid = formas.find((x) => esLid(x));
+    const elPn = formas.find((x) => esTelefono(x));
+    if (elLid && elPn && aprender(elLid, elPn)) nuevas++;
+  }
   return nuevas;
 }
 

@@ -539,6 +539,9 @@ export function connectSocket(engine, opts) {
         try { engine.getSendQueue()?.resume?.("conexion"); } catch {}
 
         engine.transit(engine.LIFECYCLE.READY);
+        if (s.user?.lid && s.user?.id) {
+          lid.aprender(s.user.lid, s.user.id);
+        }
         engine.emit("connected", s.user);
         log.success("[ ✿ ] Conectado a: " + (s.user?.name || s.user?.id || "?"));
         if (onReady) onReady(s);

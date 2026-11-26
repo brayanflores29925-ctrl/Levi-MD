@@ -239,6 +239,10 @@ export async function isAdmin(sock, chatId, senderId) {
     const target = userPart(senderId);
     if (!target) return false;
 
+    if (sock?.user?.lid && sock?.user?.id) {
+      lid.aprender(sock.user.lid, sock.user.id);
+    }
+
     let meta = getCachedMeta(chatId);
     if (!meta || !Array.isArray(meta.participants)) {
       meta = await sock?.groupMetadata?.(chatId).catch(() => null);

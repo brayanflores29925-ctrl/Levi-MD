@@ -48,9 +48,9 @@ export function esDuenoSocket(sock, sender, botSettings = null, engine = null) {
 
 export async function checkPermissions(sock, ctx, cmd, engine) {
   const ownerJid = engine.getOwnerJid ? engine.getOwnerJid() : null;
+  const isOwner = (ctx.isOwner ? ctx.isOwner(ownerJid) : false) || esDuenoSocket(sock, ctx.senderId, null, engine);
 
   if (cmd.ownerOnly) {
-    const isOwner = (ctx.isOwner ? ctx.isOwner(ownerJid) : false) || esDuenoSocket(sock, ctx.senderId, null, engine);
     if (!isOwner) {
       return state("onlyOwner");
     }
@@ -62,15 +62,20 @@ export async function checkPermissions(sock, ctx, cmd, engine) {
 
   if (cmd.adminOnly) {
     if (!ctx.isGroup) return state("onlyGroup");
-    const admin = await isAdmin(sock, ctx.chatId, ctx.senderId);
-    if (!admin) return state("onlyAdmin");
+    if (!isOwner) {
+      const admin = await isAdmin(sock, ctx.chatId, ctx.senderId);
+      if (!admin) return state("onlyAdmin");
+    }
   }
 
   if (cmd.botAdmin) {
     if (!ctx.isGroup) return state("onlyGroup");
-    // JID real del bot (userPart dentro de isAdmin normaliza :device/@server)
+    // Comprobar tanto el JID de teléfono como el @lid propio del bot
     const selfBotJid = sock.user ? sock.user.id : "";
-    const botAdmin = await isAdmin(sock, ctx.chatId, selfBotJid);
+    const selfBotLid = sock.user?.lid || "";
+    const botAdmin =
+      (selfBotJid ? await isAdmin(sock, ctx.chatId, selfBotJid) : false) ||
+      (selfBotLid ? await isAdmin(sock, ctx.chatId, selfBotLid) : false);
     if (!botAdmin) return state("botNotAdmin");
   }
 

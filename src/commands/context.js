@@ -209,7 +209,10 @@ export async function resolveGroupFacts(sock, ctx, engine) {
   if (ctx.isGroup) {
     isAdmins = await isAdmin(sock, ctx.chatId, ctx.senderId);
     const botId = resolveBotJid(sock);
-    if (botId) isBotAdmins = await isAdmin(sock, ctx.chatId, botId);
+    const botLid = sock?.user?.lid || "";
+    isBotAdmins =
+      (botId ? await isAdmin(sock, ctx.chatId, botId) : false) ||
+      (botLid ? await isAdmin(sock, ctx.chatId, botLid) : false);
     groupMetadata =
       getCachedMeta(ctx.chatId) ||
       (await sock?.groupMetadata?.(ctx.chatId).catch(() => null)) ||
@@ -245,7 +248,8 @@ export function buildEnrichedMessage(sock, ctx, extra = {}) {
   const textMentions = Array.isArray(inner?.extendedTextMessage?.contextInfo?.mentionedJid)
     ? inner.extendedTextMessage.contextInfo.mentionedJid
     : [];
-  const mentionedJid = [...new Set([...textMentions, ...directMentions])];
+  const ctxMentions = Array.isArray(ctx.mentions) ? ctx.mentions : [];
+  const mentionedJid = [...new Set([...ctxMentions, ...textMentions, ...directMentions])];
 
   const msg = {
     // ── Identidad ────────────────────────────────────────────────
@@ -330,6 +334,7 @@ export function buildEnrichedMessage(sock, ctx, extra = {}) {
     directInner?.contextInfo ||
     inner?.stickerMessage?.contextInfo ||
     inner?.audioMessage?.contextInfo ||
+    ctx.quoted ||
     null;
   const qMsg = ci?.quotedMessage;
   if (qMsg) {

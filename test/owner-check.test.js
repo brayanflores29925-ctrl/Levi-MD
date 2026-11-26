@@ -159,3 +159,88 @@ test("reconoce al owner 50494874330 por teléfono, :device, remoteJidAlt (Bailey
     else env.OWNER_NUMBER = previo;
   }
 });
+
+test(".ban / .kick expulsa en grupos @lid por mención, respuesta y número, y reconoce al bot admin por @lid", async () => {
+  const lid = await import("../src/lib/lid.js");
+  const { serializeMessage } = await import("../src/serialize.js");
+  const { checkPermissions } = await import("../src/commands/middleware/permissions.js");
+  const { deleteCachedMeta } = await import("../src/core/metaCache.js");
+  const kickMod = (await import("../cmds/group/kick.js")).default;
+
+  const groupId = "120363000999888777@g.us";
+  const botLid = "111111111111111@lid";
+  const adminLid = "222222222222222@lid";
+  const targetLid = "333333333333333@lid";
+  const targetPn = "50499887766@s.whatsapp.net";
+
+  const meta = {
+    id: groupId,
+    owner: adminLid,
+    ownerPn: "50494874330@s.whatsapp.net",
+    participants: [
+      { id: botLid, admin: "admin" }, // sin phoneNumber: solo @lid del bot
+      { id: adminLid, phoneNumber: "50494874330@s.whatsapp.net", admin: "superadmin" },
+      { id: targetLid, phoneNumber: targetPn, admin: null },
+    ],
+  };
+
+  const expulsados = [];
+  const respuestas = [];
+  const sock = {
+    user: { id: "50411112222:1@s.whatsapp.net", lid: "111111111111111:1@lid" },
+    groupMetadata: async () => meta,
+    groupParticipantsUpdate: async (jid, users, action) => {
+      expulsados.push({ jid, users, action });
+      return users.map((u) => ({ status: "200", jid: u }));
+    },
+    reply: async (_chat, text) => { respuestas.push(text); return {}; },
+    sendMessage: async (_chat, content) => { respuestas.push(content.text || ""); return {}; },
+  };
+  const engine = { getOwnerJid: () => "50494874330@s.whatsapp.net" };
+
+  lid.reiniciar();
+  deleteCachedMeta(groupId);
+
+  // 1) checkPermissions reconoce botAdmin aunque el grupo solo tenga el @lid del bot
+  const ctxPerm = serializeMessage({
+    key: { remoteJid: groupId, participant: adminLid, fromMe: false, id: "K1" },
+    message: { conversation: ".ban 50499887766" },
+  }, sock);
+  const denied = await checkPermissions(sock, ctxPerm, { groupOnly: true, adminOnly: true, botAdmin: true }, engine);
+  assert.equal(denied, null);
+
+  // 2) .ban por número resuelve p.phoneNumber -> expulsa usando p.id (@lid real del grupo)
+  await kickMod.run({
+    msg: { chat: groupId, sender: adminLid, mentionedJid: [], quoted: null, reply: async (t) => respuestas.push(t) },
+    sock,
+    args: ["50499887766"],
+    usedPrefix: ".",
+    command: "ban",
+    groupMetadata: meta,
+    participants: meta.participants,
+  });
+  assert.equal(expulsados.length, 1);
+  assert.deepEqual(expulsados[0], { jid: groupId, users: [targetLid], action: "remove" });
+
+  // 3) .ban respondiendo a un mensaje citado (quoted) con sufijo :device
+  await kickMod.run({
+    msg: {
+      chat: groupId,
+      sender: adminLid,
+      mentionedJid: [],
+      quoted: { sender: "333333333333333:9@lid" },
+      reply: async (t) => respuestas.push(t),
+    },
+    sock,
+    args: [],
+    usedPrefix: ".",
+    command: "ban",
+    groupMetadata: meta,
+    participants: [], // fuerza refresco automático de groupMetadata
+  });
+  assert.equal(expulsados.length, 2);
+  assert.deepEqual(expulsados[1].users, [targetLid]);
+
+  lid.reiniciar();
+  deleteCachedMeta(groupId);
+});
