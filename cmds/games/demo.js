@@ -79,7 +79,7 @@ export default {
         body: "Defensa contra inyecciones de prompt, fuzzing de memoria RAG\ny aislamiento de fallos con fail-safe garantizado.",
         footer: "Inmunidad CVE-2025-67511",
         buttons: [
-          ctaUrl("📢 Canal Oficial", globalThis.links?.channel || "https://whatsapp.com/channel/0029VbDVFpSGJP89hfZUe522"),
+          ctaUrl("📢 Canal Oficial", globalThis.links?.channel || "https://whatsapp.com/channel/0029VbDBJk4BfxoCBx5ov41y"),
         ],
       },
     ];

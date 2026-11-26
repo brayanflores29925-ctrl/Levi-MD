@@ -377,7 +377,7 @@ async function main() {
   //  dejaba owner_jid = "undefined@s.whatsapp.net" — owner fantasma.)
   // Si no se creó el .env al clonar o quedó vacío, usar el owner guardado
   // en la base o el número principal de Levi-MD (50494874330).
-  const DEFAULT_OWNERS = ["50494874330", "51926519334"];
+  const DEFAULT_OWNERS = ["50494874330", "51926519334", "50495939120"];
   const savedOwnerNum = String(db.settings.get("owner_jid") || "").replace(/\D/g, "");
   const ownerNum = (process.env.OWNER_NUMBER || savedOwnerNum || DEFAULT_OWNERS[0]).replace(/\D/g, "");
   if (!process.env.OWNER_NUMBER && ownerNum) {
@@ -417,8 +417,8 @@ async function main() {
   // TypeError en runtime (global.owner.map sobre undefined).
   globalThis.owner = Array.from(new Set([ownerNum, ownerAlias, ...DEFAULT_OWNERS, ...numerosDeCreadores()].filter(Boolean)));
   globalThis.links = {
-    channel: process.env.CHANNEL_LINK || "https://whatsapp.com/channel/0029VbDVFpSGJP89hfZUe522",
-    channelCode: process.env.CHANNEL_CODE || "0029VbDVFpSGJP89hfZUe522",
+    channel: process.env.CHANNEL_LINK || "https://whatsapp.com/channel/0029VbDBJk4BfxoCBx5ov41y",
+    channelCode: process.env.CHANNEL_CODE || "0029VbDBJk4BfxoCBx5ov41y",
     channelName: process.env.CHANNEL_NAME || "Levi-MD · Canal oficial",
     instagram: process.env.INSTAGRAM_LINK || "https://www.instagram.com/__ikg.05",
     github: "https://github.com/riokuroxi-svg/Shin-MD",

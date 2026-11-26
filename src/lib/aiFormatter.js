@@ -25,7 +25,7 @@ export async function sendAiResponse(sock, chatId, {
   senderName = "Usuario",
   quoted = null,
 }) {
-  const channelUrl = globalThis.links?.channel || "https://whatsapp.com/channel/0029VbDVFpSGJP89hfZUe522";
+  const channelUrl = globalThis.links?.channel || "https://whatsapp.com/channel/0029VbDBJk4BfxoCBx5ov41y";
   const cleanAnswer = String(answer || "").trim();
 
   let bodyText = `╭──〔 🤖 *SHIN-MD AI INTELLIGENCE* 〕──⬣\n`;

