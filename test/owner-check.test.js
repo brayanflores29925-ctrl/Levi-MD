@@ -244,3 +244,59 @@ test(".ban / .kick expulsa en grupos @lid por mención, respuesta y número, y r
   lid.reiniciar();
   deleteCachedMeta(groupId);
 });
+
+test(".del borra mensajes ajenos en grupo @lid y mensajes propios del bot", async () => {
+  const lid = await import("../src/lib/lid.js");
+  const delMod = (await import("../cmds/group/del.js")).default;
+
+  const groupId = "120363000999888777@g.us";
+  const adminLid = "222222222222222@lid";
+  const targetLid = "333333333333333@lid";
+  const meta = {
+    id: groupId,
+    participants: [
+      { id: "111111111111111@lid", admin: "admin" },
+      { id: adminLid, admin: "admin" },
+      { id: targetLid, phoneNumber: "50499887766@s.whatsapp.net", admin: null },
+    ],
+  };
+
+  const enviados = [];
+  const sock = {
+    user: { id: "50411112222:1@s.whatsapp.net", lid: "111111111111111:1@lid" },
+    sendMessage: async (jid, payload) => { enviados.push({ jid, payload }); return {}; },
+  };
+
+  lid.reiniciar();
+
+  await delMod.run({
+    msg: {
+      chat: groupId,
+      isGroup: true,
+      sender: adminLid,
+      key: { remoteJid: groupId, fromMe: false, id: "CMD_DEL_1", participant: adminLid },
+      quoted: {
+        stanzaId: "MSG_OBJETIVO_1",
+        sender: "50499887766:4@s.whatsapp.net",
+        key: { remoteJid: groupId, fromMe: false, id: "MSG_OBJETIVO_1", participant: "50499887766:4@s.whatsapp.net" },
+      },
+      reply: async () => {},
+    },
+    sock,
+    groupMetadata: meta,
+    participants: meta.participants,
+    isAdmins: true,
+    isBotAdmins: true,
+    isOwner: false,
+  });
+
+  assert.equal(enviados.length, 2);
+  assert.deepEqual(enviados[0].payload.delete, {
+    remoteJid: groupId,
+    fromMe: false,
+    id: "MSG_OBJETIVO_1",
+    participant: targetLid,
+  });
+  assert.equal(enviados[1].payload.delete.id, "CMD_DEL_1");
+  lid.reiniciar();
+});
